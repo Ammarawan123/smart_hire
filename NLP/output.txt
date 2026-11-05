@@ -1,0 +1,65 @@
+Speak now for 12s ...
+saved C:\Users\HP\Downloads\SmartHire_final_v2\SmartHire\outputs\answer.wav
+
+TRANSCRIPT:
+ Hello guys, hello, my name is mom and I
+
+TEXT CUES:
+ TextCues(words=9, filler_rate_per_100w=0.0, hedge_rate_per_100w=0.0, first_person_singular_share=1.0, detail_items={}, detail_count=0,detail_density=0.0, explanation_markers=0, complication_mentions=0, usable=False)
+ NLP
+Loading SBERT model...
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████| 103/103 [00:00<00:00, 1776.92it/s]
+SBERT model loaded successfully!
+  [PASS] SBERT loads and ranks relevant > irrelevant - relevant=0.43 > irrelevant=-0.06
+  [PASS] faster-whisper base.en - transcript: 'Hello my name is Mama.  I am from the University of engineering and technology.  Currently I am working on 3D  3D.  Hello hello hello hello.  Hello.  Hello.  Hello.  Hello.  Hello.  Hello.  Hello.  He'
+  [PASS] cue extraction + fusion machinery - 20 turns scored; summary={'answers': 20, 'flagged': 0, 'probes': 0, 'verified': 0, 'unresolved': 0, 'inconsistent': 0}; cue names on turn 1: ['detail_density', 'claim_detail_gap']; z: ['detail_density']
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████| 103/103 [00:00<00:00, 1100.66it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+SBERT model loaded successfully!
+
+========== SBERT ANALYSIS ==========
+
+Question:
+What experience do you have with Python?
+
+Candidate Answer:
+
+I have used Python for machine learning, data analysis,
+and computer vision projects.
+
+
+Question-Answer Similarity:
+0.7124346494674683
+
+Candidate vs Ideal Answer Similarity:
+0.9497954249382019
+
+Text Feature Vector Size:
+384
+Listening... (Ctrl+C to stop)
+Recording will be saved to:  recordings/recording_20261103_191136.wav
+Transcript will be saved to: recordings/transcript_20261103_191136.txt
+
+
+[LATENCY] total 16.25s | model-only 16.24s | audio 34.3s | model RTF 0.47 | rms 0.0136
+>> Hello, my name is Mohamed Amar, I am from the University of Engineering and Technology. Currently, I am working on 360 expert solutions in which we are working AI backend development in AI. Currently, I am focused on AI development in which we are mixed and reacts in production multi-agent system multi-agent system observability and evolves.
+[FILTERED - LOW ENERGY rms=0.0033 < 0.006] "<chunk not sent to model>"
+RealtimeSTT shutting down
+
+
+Stopping...
+Saved recording:  recordings/recording_20261103_191136.wav
+Saved transcript: recordings/transcript_20261103_191136.txt
+
+--- Latency summary (speech stop -> final text) ---
+  chunks : 1
+  average: 16.25s
+  best   : 16.25s
+  worst  : 16.25s
+  model-only avg: 16.24s (min 16.24s, max 16.24s)
+  config : model=distil-large-v3, beam_size=3, live_preview=False, silence=1.0s
+
+Running grammar correction pass on the saved transcript...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights: 100%|█████████████████████████████████████████████████████████████████████████████| 260/260 [00:00<00:00, 5310.02it/s]
+Grammar-corrected transcript saved to: recordings/transcript_20261103_191136_corrected.txt

@@ -1,0 +1,485 @@
+"""
+answer_understanding_v58.py — turn a candidate's answer into an explicit, auditable Interpretation.
+
+Design (why it is not keyword matching):
+  1. COMMANDS / INTENT first   skip, next, quit, help, repeat, "I don't know", "I haven't used it", disputes ("when did I say that?")
+                               are recognised as dialogue acts, never as technical content.
+  2. CLAUSE-LEVEL ANALYSIS     the answer is split into clauses; each clause gets (subject, polarity, verb class, modality), so
+                               "I learned RAG but haven't implemented it" yields LEARNING_ONLY, not NO_EXPERIENCE.
+  3. ENTITY SCOPING            a statement only touches the concepts named in *its own clause* (or the one the pronoun "it" resolves to
+                               in the question). "I don't build it" about OpenCV can therefore never set Python or Machine Learning.
+  4. LIBRARY RULE              negating *authoring* of a library/tool ("OpenCV is a prebuilt library, I didn't build it") is not
+                               lack of experience with it.
+  5. GRAMMAR-INDEPENDENT       verb stems and tense-insensitive patterns ("I collect it myself like I download dataset ... I take my image")
+                               are understood as past first-person actions; word order and articles are not required.
+  6. EVIDENCE FACETS           depth is measured by which *evidence facets* of the concept the answer touches (e.g. for RAG:
+                               chunking, embeddings, retrieval, grounding, evaluation) — never by grammar or length.
+  7. OPTIONAL LLM REFINEMENT   Qwen is asked for strict JSON only when the deterministic parse is ambiguous; its output is validated
+                               (allowed concepts, enum stances, quote must exist in the answer) and can only ADD claims, never overwrite.
+"""
+from __future__ import annotations
+
+import re
+from typing import Dict, List, Optional, Tuple
+
+import concepts_v58 as K
+import v58_config as cfg
+from models_v58 import Claim, Interpretation, QuestionContext
+from textkit_v58 import clip, content_tokens, fuzzy_eq, norm_answer, split_sentences, word_count
+
+# ── dialogue acts ───────────────────────────────────────────────────────────────────────────────
+_RX = {
+    "quit": re.compile(r"^\W*(quit|exit|stop(?: the)? interview|end(?: the)? interview|i (?:want|wish) to (?:quit|stop|leave|end)|let'?s stop|i'?m done|that'?s all)\W*$"),
+    "help": re.compile(r"^\W*(help|\?|what can i (?:say|do)|how does this work|commands)\W*$"),
+    "repeat": re.compile(r"^\W*(repeat|(?:please )?say (?:that )?again|come again|pardon|sorry\??|can you repeat.*|i (?:did ?n'?t|could ?n'?t) (?:hear|catch).*|one more time)\W*$"),
+    "clarify_request": re.compile(r"(what do you mean|i (?:don'?t|do not) (?:understand|get) (?:the|this|your) question|can you (?:explain|rephrase|simplify) (?:the|this|that)? ?question|which (?:one|part) (?:do you|are you)|what exactly (?:are you|do you) ask|not clear what you)"),
+    "skip": re.compile(r"^\W*(skip(?: it| this| this one| question)?|next(?: question)?|pass|move on|let'?s move on|go next|next one|i(?:'d| would) (?:like to )?skip)\W*$"),
+    "dispute": re.compile(r"(when did i say|i (?:never|did ?n'?t|did not) say|that'?s not what i said|i said (?:that )?i (?:have|did|used|worked)|you (?:misunderstood|are wrong|got it wrong|misheard)|i never said)"),
+}
+_UNKNOWN = re.compile(r"^\W*(?:i )?(?:don'?t|do not) (?:really )?know\b[\w\s']{0,28}$|^\W*(?:i )?(?:am |i'm )?(?:really )?not (?:very )?(?:sure|familiar)\b[\w\s']{0,24}$|^\W*(?:i )?(?:have )?no (?:idea|clue)\b|^\W*not sure\W*$|^\W*i'?m not sure\W*$|^\W*(?:i )?(?:am )?not aware\b|^\W*never heard (?:of|about)(?: it| this| that)?\W*$|^\W*dunno\W*$|^\W*i can'?t say\W*$|^\W*(?:i )?(?:do ?n'?t|don'?t) remember\W*$")
+_NO_EXP = re.compile(r"(?:(?:i|we)\s+)?(?:have ?n'?t|haven'?t|has ?n'?t|never|did ?n'?t|didn'?t|don'?t|do not|do ?n'?t|not|no)\s+(?:yet\s+|ever\s+|really\s+|actually\s+|directly\s+)?(?:used|use|worked|work|done|do|tried|try|built|build|made|make|implemented|implement|touched|experience[d]?|had|have|got|handled|coded|written|wrote|applied|developed|practised|practiced)\b|(?:no|zero|little|limited|not much|not any|any)\s+(?:practical |hands[- ]on |real |direct |work |project |professional )*experience|never (?:worked|used|tried|did|built|touched|heard)|first time (?:i|hearing)|(?:i|we) (?:have|had) not\b")
+_YES = re.compile(r"^\W*(yes|yeah|yep|yup|sure|of course|definitely|absolutely|i have|i did|i do|i can|ok yes|yes i have|yes sir)\b")
+_NO = re.compile(r"^\W*(no|nope|nah|not really|never|not yet|negative|no sir)\b")
+
+# ── clause vocabulary (tense-insensitive stems, broken-English tolerant) ───────────────────────
+_BUILD = r"(?:buil[dt]\w*|creat\w*|mak(?:e|ing|es)|made|develop\w*|implement\w*|wr[io]te?\w*|writ(?:e|ing|ten)|wrote|cod(?:e|ed|ing)|train\w*|design\w*|deploy\w*|collect\w*|download\w*|label\w*|annotat\w*|test\w*|fix\w*|tak(?:e|ing|es)|took|captur\w*|record\w*|integrat\w*|connect\w*|set ?up|setup|configur\w*|clean\w*|prepar\w*|evaluat\w*|tun(?:e|ed|ing)|fine[- ]?tun\w*|wrapp?\w*|call\w*|script\w*|run|ran|running|execut\w*|process\w*|split\w*|augment\w*|stor\w*|query|queried|join\w*|writ\w*|add\w*|generat\w*|prompt\w*|chunk\w*|embed\w*|index\w*|retriev\w*|debug\w*|solv\w*|handl\w*|did|do|done)"
+_USE = r"(?:us(?:e|ed|ing|es)|work(?:ed|ing|s)?|appl(?:y|ied|ying)|tri(?:ed|y|ying)|practi[cs]\w*|experiment\w*)"
+_LEARN = r"(?:learn(?:ed|t|ing)\b|stud(?:y|ied|ying)|read|watch\w*|follow\w*|course|tutorial|lecture|taught|certificat\w*|know about|heard|aware|familiar|theor\w*|only theory)"
+_FUTURE_LEARN = re.compile(r"\b(?:need|want|have|has|going|plan|hope|like|try|trying|should|will|would|wish|ready|eager|willing)\s+(?:to\s+)?(?:learn|study|read|know)\w*|\blearn(?:ing)?\s+more\b|\bto learn\b")
+_HYPO = re.compile(r"\b(would|will|i'?ll|i'?d|should|might|suppose|imagine|first i|then i|we can|you can|you would|one can|one would|going to|plan to|want to|i think we|let'?s say|i could|we could|could)\b")
+_HYPO_IF = re.compile(r"^(?:if|suppose|imagine)\b|\bif (?:i|we|you)\b.*\b(?:would|will|can|could)\b")
+_HEDGE = re.compile(r"\b(maybe|probably|i think|i guess|kind of|sort of|something like|not sure|perhaps|i believe|roughly|around|somehow)\b")
+_DEFN = re.compile(r"\b(is a|is an|is the|means|stands for|refers to|are used|is used|is called|works by|work by|it is|basically|in general|generally|typically|defined as|consists of|is when|are when)\b")
+_FIRST = re.compile(r"\b(i|i'm|i've|i'd|i'll|me|my|myself|we|our|us)\b")
+_OWN_STRONG = re.compile(r"\b(myself|by myself|on my own|i built|i made|i wrote|i trained|i developed|i created|i implemented|i did (?:it|all|everything)|whole|entire(?:ly)?|all (?:of )?(?:it|the)|from scratch|solo|alone|individually|my own)\b")
+_OWN_SOME = re.compile(r"\b(we |our |team|together|group|teammate|partner|helped|my part|assisted|contributed|with (?:my )?(?:friend|friends|team|classmate)|divid\w+)")
+_OWN_NONE = re.compile(r"\b(someone else|my (?:friend|teammate|partner|team|senior|brother|sister)\s+(?:did|made|built|wrote|handled)|they (?:did|built|made|wrote)|not (?:me|mine)|was not my work)\b")
+_LIB_WORDS = re.compile(r"\b(librar(?:y|ies)|prebuilt|pre-built|package|module|tool|framework|already (?:built|made|available)|open[- ]?source|ready[- ]?made|inbuilt|built[- ]in)\b")
+_REASON = re.compile(r"\b(because|so that|so i|since|therefore|reason|due to|in order to|that'?s why|instead of|rather than|compared|trade-?off|versus|vs)\b")
+_PROBLEM = re.compile(r"\b(problem|issue|error|bug|failed|failure|difficult\w*|struggl\w*|challeng\w*|crash\w*|mistake|not working|didn'?t work|slow|wrong|low accuracy|overfit\w*)\b")
+_FIX = re.compile(r"\b(fix\w*|solv\w*|resolv\w*|changed|changing|tried|switch\w*|replac\w*|improv\w*|reduc\w*|adjust\w*|tun(?:e|ed|ing)|workaround|debug\w*|add(?:ed)?)\b")
+_NUM = re.compile(r"\b\d+(?:\.\d+)?\s*(?:%|percent|epochs?|images?|samples?|classes|class|fps|ms|seconds?|users?|rows?|records?|layers?|hours?|days?|weeks?|months?)\b|\b\d{2,}\b")
+
+# aspects: (aspect, regex)
+_ASPECTS: List[Tuple[str, re.Pattern]] = [
+    ("dataset", re.compile(r"\b(dataset|data set|images?|photos?|pictures?|videos?|collect\w*|download\w*|scrap\w*|kaggle|roboflow|capture\w*|samples?|classes|class)\b")),
+    ("labeling", re.compile(r"\b(label\w*|annotat\w*|roboflow|labelimg|bounding box\w*|tagg?\w*)\b")),
+    ("training", re.compile(r"\b(train\w*|epochs?|fine[- ]?tun\w*|pre-?trained|weights|batch size|learning rate|optimi[sz]er|loss)\b")),
+    ("evaluation", re.compile(r"\b(map|accuracy|precision|recall|f1|iou|evaluat\w*|validat\w*|test set|testing|confusion|metrics?|score)\b")),
+    ("deployment", re.compile(r"\b(real[- ]?time|webcam|camera|deploy\w*|inference|live|gui|interface|app(?:lication)?|fps|convert\w*)\b")),
+    ("challenge", re.compile(_PROBLEM.pattern)),
+    ("result", re.compile(r"\b(result|outcome|achiev\w*|got\s+\d|accuracy of|improved|works? (?:well|fine|good)|successful\w*)\b")),
+]
+_SOFT_CUES = {
+    "teamwork": re.compile(r"\b(team\w*|group|together|divid\w+|colleague|classmate|partner|collaborat\w+|share[ds]?|presentation)\b"),
+    "communication": re.compile(r"\b(explain\w*|present\w*|communicat\w+|discuss\w*|clarif\w+|convey\w*|talk\w*|listen\w*|document\w*)\b"),
+    "problem_solving": re.compile(r"\b(problem|solv\w+|fix\w*|debug\w*|figure[d]? out|approach|solution|issue|stuck)\b"),
+    "analytical_thinking": re.compile(r"\b(analy[sz]\w+|compare\w*|break\w* down|investigat\w+|data|reason\w*|test\w+)\b"),
+    "learning_ability": re.compile(r"\b(learn\w*|tutorial|course|self[- ]taught|picked up|new (?:technolog\w+|skill|tool)|read documentation|docs)\b"),
+    "adaptability": re.compile(r"\b(adapt\w+|new (?:tool|language|stack|technolog\w+)|switch\w*|changed|flexible|different)\b"),
+    "attention_to_detail": re.compile(r"\b(detail\w*|careful\w*|double[- ]check\w*|review\w*|edge case\w*|verify|verified|checked)\b"),
+    "planning": re.compile(r"\b(plan\w*|deadline|schedule\w*|priorit\w+|organi[sz]\w+|timeline|milestone\w*)\b"),
+    "independence": re.compile(r"\b(myself|independent\w*|on my own|alone|self[- ]\w+|without help|initiative)\b"),
+    "decision_making": re.compile(r"\b(decid\w+|decision|chose|choose|choice|picked|selected|trade-?off)\b"),
+    "drive": re.compile(r"\b(passion\w*|motivat\w+|excit\w+|eager|determin\w+|love|enjoy\w*)\b"),
+}
+
+
+def _clauses(n: str) -> List[str]:
+    parts = re.split(r"(?<=[.!?;])\s+|,?\s+(?:but|however|although|though|whereas|while)\s+|,\s+(?=(?:i|we|my)\s)|\s+and then\s+|,?\s+then\s+", n)
+    out = [p.strip(" ,.") for p in parts if p and p.strip(" ,.")]
+    return out or [n]
+
+
+def _project_hits(text: str, resume) -> List[str]:
+    t = text.lower()
+    hits = []
+    for p in (resume.projects if resume else []):
+        nm = p.short_name.lower()
+        toks = [x for x in re.findall(r"[a-z0-9]+", nm) if x not in {"the", "a", "an", "and", "of", "vs", "clone", "app", "project", "system", "detection", "classifier"}] or re.findall(r"[a-z0-9]+", nm)
+        if nm in t or (toks and all(x in t for x in toks[:2]) and (len(toks) >= 1 and any(len(x) > 4 for x in toks))):
+            hits.append(p.short_name)
+        elif toks and len(toks[0]) > 5 and toks[0] in t:
+            hits.append(p.short_name)
+    return hits
+
+
+def _library(key: str) -> bool:
+    c = K.get(key)
+    return bool(c and c.library_like)
+
+
+def classify_intent(text: str) -> Tuple[str, str]:
+    """-> (intent, direct_answer)."""
+    n = norm_answer(text)
+    if not n:
+        return "empty", ""
+    for name in ("quit", "help", "repeat", "skip", "dispute", "clarify_request"):
+        if _RX[name].search(n):
+            return name, ""
+    short = word_count(n) <= 9
+    if _UNKNOWN.search(n) or (re.match(r"^\W*(?:i )?(?:am |i'm )?(?:really |still )?(?:not|never) (?:very |too )?(?:sure|certain|familiar)\b", n) and not K.find_mentions(n) and word_count(n) <= 16):
+        return "explicit_unknown", "no"
+    if short and _NO_EXP.search(n) and not re.search(r"\b(but|however)\b", n) and not K.find_mentions(n) is None:
+        return "no_experience", "no"
+    if short and _YES.search(n) and word_count(n) <= 4:
+        return "affirmation", "yes"
+    if short and _NO.search(n) and word_count(n) <= 4:
+        return "negation", "no"
+    d = "yes" if _YES.search(n) else ("no" if _NO.search(n) else "")
+    return "substantive", d
+
+
+_NEG = r"(?:(?:\b(?:not|never|no|without|hardly|barely|neither|nor)\b)|n't\b|\bcannot\b)"
+_VERB_USE = r"(?:" + _BUILD + r"|" + _USE + r"|experience\w*|touch\w*|implement\w*|handl\w*|hands[- ]on|practical\w*)"
+_VERB_KNOW = r"(?:know\w*|understand\w*|aware\w*|familiar\w*|sure|remember\w*|idea|clue)"
+_NEG_USE = re.compile(_NEG + r"\s+(?:[a-z']+\s+){0,2}?\b" + _VERB_USE + r"\b|\b(?:no|zero|little|limited)\s+(?:[a-z]+\s+)?experience")
+_NEG_KNOW = re.compile(_NEG + r"\s+(?:[a-z']+\s+){0,2}?\b" + _VERB_KNOW + r"\b")
+_COND = re.compile(r"^(?:and |but |so |then )?(?:if|when|whenever|unless|in case)\b")
+
+
+def _stance_for_clause(cl: str, ctx: QuestionContext, entity_key: Optional[str]) -> Tuple[str, str, float, str]:
+    """-> (stance, ownership, strength_bonus, note) for one clause about one entity.
+    Negation is *scoped*: it only counts when it governs a use/build/know verb ("don't build it", "never used"), so
+    "if a class I want I can't find ..." (negation of finding) never becomes "no experience"."""
+    first = bool(_FIRST.search(cl)) or bool(re.match(r"^(?:used|built|made|trained|wrote|created|developed|implemented|collected|downloaded|took|did)\b", cl))
+    neg_use = bool(_NEG_USE.search(cl)) or bool(_NO_EXP.search(cl))
+    neg_know = bool(_NEG_KNOW.search(cl))
+    verbs_build = bool(re.search(r"\b" + _BUILD + r"\b", cl))
+    verbs_use = bool(re.search(r"\b" + _USE + r"\b", cl))
+    learn = bool(re.search(r"\b" + _LEARN + r"\b", _FUTURE_LEARN.sub(" ", cl)))
+    own_work = ctx.kind in ("project_probe", "project_walkthrough", "followup", "intro") and bool(ctx.anchor_project)
+    hypo = bool(_HYPO.search(cl)) or ctx.scenario or (not own_work and bool(_HYPO_IF.search(cl)))
+    defn = bool(_DEFN.search(cl)) or bool(re.match(r"^(?:[a-z0-9#+./-]+\s+){0,3}(?:is|are|means|stands for)\s+\w+", cl) and not first)
+    lib = bool(entity_key and _library(entity_key))
+    own = "unknown"
+    if _OWN_NONE.search(cl):
+        own = "none"
+    elif _OWN_STRONG.search(cl):
+        own = "strong"
+    elif _OWN_SOME.search(cl):
+        own = "some"
+    if _COND.match(cl):
+        return "claim", own, 0.0, "conditional clause"       # "if a class is missing ..." is context, not a statement of experience
+    if neg_use:
+        build_only = bool(re.search(r"\b(?:buil[dt]\w*|creat\w*|mak(?:e|es|ing)|made|develop\w*|writ\w*|wrote)\b", cl)) and not verbs_use and not re.search(r"\b(?:used|use|using|work|worked|experience|tried|implemented|applied)\b", cl)
+        if lib and build_only:
+            return "library_note", "none", 0.0, "negates authoring a library/tool, not using it"
+        if learn and not neg_know:
+            return "learning", own, 0.0, "learned but did not apply"
+        return "no_experience", "none" if own == "unknown" else own, 0.0, ""
+    if neg_know:
+        return "unknown", own, 0.0, ""
+    if re.match(r"^(?:and |but |also )?(?:not|no|never|without)\b", cl) and not first and not verbs_build and not verbs_use:
+        return "no_experience", "none", 0.0, ""
+    if learn and not (first and verbs_build and not hypo and not re.search(r"\b(?:only|just|theory|theoretical)\b", cl)):
+        return "learning", own, 0.0, ""
+    if hypo and not (first and verbs_build and re.search(r"\b(?:did|used|built|made|trained|wrote|collected|downloaded|took)\b", cl)):
+        return "theoretical", own, 0.1, "hypothetical / design answer"
+    if first and (verbs_build or verbs_use):
+        return "practical", own, 0.2 + (0.1 if own == "strong" else 0.0), ""
+    if defn or (not first and verbs_build):
+        return "theoretical", own, 0.05, ""
+    return "claim", own, 0.0, ""
+
+
+def _paraphrase_facts(n: str, resume=None) -> List[Dict[str, str]]:
+    """What the candidate actually told us, as short second-person phrases usable in a follow-up question."""
+    facts: List[Dict[str, str]] = []
+    # dataset sourcing (the V51 failure case)
+    dl = re.search(r"\b(download\w*|public|kaggle|roboflow|existing|online|internet|available)\b", n)
+    own_cap = re.search(r"\b(?:tak(?:e|ing|es)|took|captur\w+|record\w*|shoot|shot|click\w*|made|create[d]?)\b[^.]{0,30}\b(?:my|own|myself|self)\b[^.]{0,20}\b(?:images?|photos?|pictures?|videos?|data|samples?)\b|\b(?:my own|myself|own)\b[^.]{0,25}\b(?:images?|photos?|data|samples?)\b|\bcollect\w*\b[^.]{0,25}\b(?:myself|by myself|own)\b[^.]{0,25}\b(?:images?|photos?|data|samples?|dataset)\b|\bcollect\w*\s+(?:it|them|the (?:data|images|dataset))\s+myself\b", n)
+    gap = re.search(r"\b(?:can'?t|cannot|could ?n'?t|not|don'?t|didn'?t|no)\b[^.]{0,20}\b(?:find|found|available|exist|there)\b|\bmissing\b|\bif (?:a )?class\b", n)
+    if dl or own_cap:
+        parts = []
+        if dl and own_cap:
+            parts.append("downloaded existing images" if re.search(r"image|photo|picture", n) else "downloaded existing data")
+            parts.append("captured your own for the classes you couldn't find" if gap else "captured some of your own")
+            ph = " and ".join(parts)
+        elif dl:
+            ph = "downloaded an existing dataset"
+        else:
+            ph = "collected your own images" if re.search(r"image|photo|picture", n) else "collected your own data"
+        facts.append({"aspect": "dataset", "phrase": ph, "quote": clip(n, 100)})
+    elif re.search(r"\bdataset|data set\b", n):
+        facts.append({"aspect": "dataset", "phrase": "described the dataset", "quote": clip(n, 100)})
+    m = re.search(r"\b(label\w*|annotat\w*)\b[^.]{0,40}?\b(roboflow|labelimg|cvat|label ?studio|manually|by hand)\b|\b(roboflow|labelimg|cvat)\b", n)
+    if m or re.search(r"\b(label\w*|annotat\w*)\b", n):
+        tool = (m.group(2) or m.group(3) or "").strip() if m else ""
+        facts.append({"aspect": "labeling", "phrase": f"labelled the data{(' with ' + tool) if tool else ''}", "quote": clip(n, 100)})
+    if re.search(r"\b(train\w*|epochs?|fine[- ]?tun\w*)\b", n):
+        e = re.search(r"(\d+)\s*epochs?", n)
+        facts.append({"aspect": "training", "phrase": "trained the model" + (f" for {e.group(1)} epochs" if e else ""), "quote": clip(n, 100)})
+    em = re.search(r"\b(map|accuracy|precision|recall|f1|iou|confusion)\b", n)
+    if em or re.search(r"\b(evaluat\w*|validat\w*|test set)\b", n):
+        facts.append({"aspect": "evaluation", "phrase": "evaluated it" + (f" using {em.group(1).upper() if em.group(1)=='map' else em.group(1)}" if em else ""), "quote": clip(n, 100)})
+    if re.search(r"\b(real[- ]?time|webcam|camera|live|deploy\w*|inference)\b", n):
+        facts.append({"aspect": "deployment", "phrase": "ran it in real time" if "real" in n else "deployed it", "quote": clip(n, 100)})
+    pm = _PROBLEM.search(n)
+    if pm:
+        facts.append({"aspect": "challenge", "phrase": f"ran into {pm.group(0)}s" if pm.group(0).isalpha() and not pm.group(0).endswith("s") else f"ran into {pm.group(0)}", "quote": clip(n, 100)})
+    if re.search(r"\b(real[- ]?time)\b[^.]{0,60}\b(convert\w*|text|translate\w*)\b|\b(detect\w*)\b[^.]{0,30}\b(gestures?|signs?)\b", n):
+        facts.append({"aspect": "function", "phrase": "detects sign gestures in real time and converts them to text" if "text" in n else "detects gestures in real time", "quote": clip(n, 100)})
+    return facts
+
+
+def _specificity(n: str, mentions: int, facts: int, facets: int) -> str:
+    score = 0
+    score += 1 if _NUM.search(n) else 0
+    score += 1 if _REASON.search(n) else 0
+    score += 1 if (_PROBLEM.search(n) and _FIX.search(n)) else 0
+    score += min(2, mentions)
+    score += min(2, facts)
+    score += min(2, facets)
+    wc = word_count(n)
+    if wc < 6:
+        score = min(score, 1)
+    return "high" if score >= 6 else "medium" if score >= 3 else "low" if score >= 1 else "none"
+
+
+def understand(text: str, ctx: QuestionContext, resume=None, graph=None, llm=None, llm_budget: Optional[List[int]] = None) -> Interpretation:
+    it = Interpretation(text=text.strip(), words=word_count(text))
+    intent, direct = classify_intent(text)
+    it.intent, it.direct_answer = intent, direct
+    n = norm_answer(text)
+    if intent in ("empty", "quit", "help", "repeat", "skip", "dispute", "clarify_request"):
+        it.quality = "none"
+        return it
+    if intent in ("explicit_unknown", "no_experience", "negation", "affirmation"):
+        it.quality = "none"
+        it.uncertainty = intent == "explicit_unknown"
+        it.question_answered = intent != "explicit_unknown"
+        # a bare yes/no/unknown attaches to the question's own targets (engine does that); a short answer that names concepts is analysed below
+        lib_anchor = any(_library(k) for k in ctx.targets)
+        if not K.find_mentions(n) and not _project_hits(n, resume) and not (lib_anchor and re.search(r"\b(?:buil[dt]\w*|creat\w*|made|mak\w+|writ\w+|wrote)\b", n)):
+            return it
+    # ── clause analysis ───────────────────────────────────────────────────────────────────────
+    clauses = _clauses(n)
+    mentions_all = K.find_mentions(n)
+    it.projects_mentioned = _project_hits(n, resume)
+    claims: Dict[str, Claim] = {}
+    anchor_keys = [k for k in ctx.targets if k in K.REG]
+    pron = re.compile(r"\b(it|this|that|them|these|those|one|the same)\b")
+    for cl in clauses:
+        ments = [m[0] for m in K.find_mentions(cl)]
+        if not ments and pron.search(cl) and anchor_keys:
+            ments = (anchor_keys if len(anchor_keys) == 1 else []) if ctx.kind in ("project_probe", "knowledge", "followup", "scenario") else (anchor_keys if ctx.kind == "cluster_gate" else [])
+        if not ments and (_NO_EXP.search(cl) or _UNKNOWN.search(cl)) and len(anchor_keys) >= 1 and word_count(cl) <= 8 and ctx.kind != "project_walkthrough" and not ctx.aspect:
+            ments = anchor_keys
+        stance_cache = {}
+        for key in dict.fromkeys(ments):
+            stance, own, bonus, note = _stance_for_clause(cl, ctx, key)
+            if stance == "library_note":
+                it.anchor_is_library = True
+                it.notes.append(f"{K.name_of(key)}: {note}")
+                continue
+            if key in claims:
+                old = claims[key]
+                rank = {"no_experience": 0, "unknown": 0, "claim": 1, "learning": 2, "theoretical": 3, "practical": 4}
+                if rank[stance] > rank[old.stance]:
+                    old.stance, old.note = stance, note or old.note
+                old.strength = min(1.0, old.strength + bonus)
+                old.quote = old.quote or clip(cl, 90)
+                if own != "unknown":
+                    old.ownership = own if old.ownership == "unknown" else old.ownership
+                continue
+            claims[key] = Claim(key, stance, False, own, [], clip(cl, 90), 0.3 + bonus, note)
+        if stance_cache:
+            pass
+    # "I learned YOLO from YouTube ... and then made the project": a later first-person build clause that names nothing else applies what was learned
+    for idx, cl in enumerate(clauses):
+        lk = [m[0] for m in K.find_mentions(cl)]
+        for key in lk:
+            c0 = claims.get(key)
+            if c0 and c0.stance == "learning" and not c0.implied:
+                for later in clauses[idx + 1:]:
+                    if K.find_mentions(later) or _NEG_USE.search(later) or _HYPO.search(later):
+                        continue
+                    if re.search(r"\b(?:then |after that |later )?(?:i |we )?(?:made|built|build|created|develop\w*|implement\w*|trained|wrote|used|use|applied)\b[^.]{0,30}\b(?:project|app|system|model|it|them|this|one)\b", later):
+                        c0.stance, c0.note = "practical", "learned, then applied it in their own work"
+                        c0.strength = max(c0.strength, 0.4)
+                        break
+    # "OOP is classes and objects ... In Pygame I made a class for player": a later first-person build clause that hits the concept's own
+    # evidence facets turns a definition/claim into applied (practical) evidence
+    for key, c0 in list(claims.items()):
+        if c0.stance in ("claim", "theoretical") and not c0.implied and ctx.kind in ("knowledge", "project_probe", "followup", "cluster_gate") and not ctx.scenario:
+            for cl in clauses:
+                if _FIRST.search(cl) and re.search(r"\b" + _BUILD + r"\b", cl) and not _NEG_USE.search(cl) and not _HYPO.search(cl) and K.facets_hit(key, cl) and not re.search(r"\bi (?:know|learned|studied)\b", cl):
+                    c0.stance, c0.note = "practical", "applied it in their own work (first-person build clause matching its evidence areas)"
+                    c0.strength = max(c0.strength, 0.4)
+                    break
+    # answers that never name the target but clearly discuss its evidence facets (e.g. a RAG design without saying "RAG")
+    if ctx.kind in ("knowledge", "scenario", "followup", "project_probe", "cluster_gate"):
+        for key in anchor_keys:
+            if key not in claims:
+                hit = K.facets_hit(key, n)
+                if len(hit) >= (1 if len(anchor_keys) == 1 else 3) and not it.anchor_is_library and not re.match(r"^\W*(no|not|never)\b", n):
+                    stance, own, bonus, note = _stance_for_clause(n, ctx, key)
+                    if stance in ("practical", "theoretical", "learning"):
+                        stance = "theoretical" if stance == "practical" and len(anchor_keys) > 1 else stance      # never hands-on credit for an unnamed concept among several
+                        claims[key] = Claim(key, stance, False, own, [], clip(n, 90), 0.3 + bonus, "facets discussed without naming the concept")
+    # Only the competencies the question was about may receive *conceptual* credit. A passing mention of another concept ("…testing…", "…give it to the LLM…")
+    # is not evidence about it; first-person use, explicit "no experience" and explicit "learned" statements still count wherever they appear.
+    if ctx.targets:
+        for key in [k for k, c0 in claims.items() if c0.stance in ("claim", "theoretical") and k not in ctx.targets]:
+            del claims[key]
+    # "learned X but haven't implemented it": negative implementation clause must not erase a learning claim (handled by rank above)
+    # facets: attributed only to positive, non-implied claims, from the whole answer text
+    for key, c in claims.items():
+        if c.stance in ("practical", "theoretical", "learning"):
+            c.facets = K.facets_hit(key, n)
+            c.strength = min(1.0, c.strength + min(0.3, 0.08 * len(c.facets)))
+        if c.stance in ("practical",) and it.anchor_is_library is False:
+            pass
+    # implied evidence from practical claims (YOLO => Computer Vision ...), only for tracked concepts, never overriding a direct claim
+    tracked = set(graph.comp) if graph is not None else set()
+    for key, c in list(claims.items()):
+        if c.stance == "practical":
+            for k2, w in K.closure(key).items():
+                if k2 not in claims and w >= 0.3:
+                    claims[k2] = Claim(k2, "practical", True, c.ownership, [], c.quote, 0.2, f"implied by {K.name_of(key)}")
+    # family credit: SQL answer supports "SQL Server" requirement at reduced weight
+    for child, parent in K.FAMILY.items():
+        if parent in claims and child not in claims and graph is not None and child in graph.job.requirements and claims[parent].stance in ("practical", "theoretical", "learning"):
+            claims[child] = Claim(child, claims[parent].stance, True, claims[parent].ownership, [], claims[parent].quote, 0.2, f"family credit from {K.name_of(parent)}")
+    it.claims = list(claims.values())
+    # project technology evidence: "I used X in my sign language project" credits project aspects through facts
+    it.facts = _paraphrase_facts(n, resume)
+    # ownership overall
+    own_all = "none" if _OWN_NONE.search(n) else "strong" if _OWN_STRONG.search(n) else "some" if _OWN_SOME.search(n) else "unknown"
+    pos_claims = [c for c in it.claims if not c.implied and c.stance in ("practical", "theoretical", "learning", "claim")]
+    if own_all == "unknown" and any(c.ownership != "unknown" for c in pos_claims):
+        own_all = next(c.ownership for c in pos_claims if c.ownership != "unknown")
+    elif own_all == "none" and not _OWN_NONE.search(n):
+        own_all = "unknown"
+    it.ownership = own_all
+    if it.anchor_is_library and own_all in ("unknown", "strong"):
+        it.ownership = "none"
+    it.uncertainty = it.uncertainty or bool(_HEDGE.search(n))
+    nfac = len({f for c in it.claims if not c.implied for f in c.facets})
+    it.specificity = _specificity(n, len([m for m in mentions_all]), len(it.facts), nfac)
+    # ── did the answer address the question? ────────────────────────────────────────────────────
+    target_hit = any(c.key in ctx.targets and not c.implied for c in it.claims)
+    aspect_hit = bool(ctx.aspect and any(f["aspect"] == ctx.aspect for f in it.facts))
+    if ctx.aspect == "ownership":
+        aspect_hit = it.ownership != "unknown"
+    soft_hit = False
+    if ctx.kind in ("behavioural", "intro") or ctx.soft:
+        sv = {}
+        for key, rx in _SOFT_CUES.items():
+            if rx.search(n):
+                sv[key] = 1
+        sit = bool(re.search(r"\b(project|group|team|when|once|during|at (?:university|college|work)|semester|assignment|class|internship|my)\b", n))
+        act = bool(re.search(r"\b(i|we)\s+\w*\s*(?:decid\w+|did|made|built|talked|asked|explained|divid\w+|handled|fixed|organi[sz]ed|took|started|helped|wrote|presented|learn\w*|chose|managed)\b|\b(?:my part|i was responsible)\b", n))
+        res = bool(re.search(r"\b(result|finish\w*|complet\w*|deliver\w*|success\w*|worked|works|good|improv\w+|learn\w+|submitted|achiev\w+|got)\b", n))
+        base = 0.15 * sit + 0.25 * act + 0.2 * res + (0.2 if word_count(n) >= 25 else 0.1 if word_count(n) >= 12 else 0)
+        for key in sv:
+            val = min(0.8, base + 0.15)
+            if ctx.soft and key == ctx.soft:
+                val = min(0.85, val + 0.1)
+            elif ctx.soft:
+                val = min(val, 0.55)                 # incidental signals are weaker than the asked competency
+            if not act:
+                val = min(val, 0.28)          # a trait word ("I like to learn") without a personal action is not evidence
+            if val >= 0.3 and (key == ctx.soft or sit or act):
+                it.soft[key] = round(val, 2)
+        if ctx.soft and ctx.soft not in it.soft and base >= 0.35 and act:
+            it.soft[ctx.soft] = round(base, 2)
+        soft_hit = bool(ctx.soft and ctx.soft in it.soft)
+        if ctx.kind == "intro":
+            soft_hit = it.words >= 8
+    it.question_answered = (target_hit or aspect_hit or soft_hit or (ctx.kind in ("project_walkthrough",) and (len(it.facts) > 0 or bool(it.projects_mentioned) or nfac > 0))
+                            or it.intent in ("no_experience", "negation", "affirmation", "explicit_unknown")
+                            or (ctx.kind == "clarify" and it.words >= 4) or (it.anchor_is_library and bool(ctx.anchor_project or ctx.targets)))
+    if it.words >= 10 and not (target_hit or aspect_hit or soft_hit or it.facts or it.claims) and ctx.kind not in ("intro", "closing"):
+        it.question_answered = it.question_answered and False
+    # ── quality (grammar-independent) ───────────────────────────────────────────────────────────
+    if it.intent in ("explicit_unknown",):
+        it.quality = "none"
+    elif it.intent in ("no_experience", "negation") and not it.facts:
+        it.quality = "none"
+    else:
+        score = 0
+        score += {"none": 0, "low": 1, "medium": 2, "high": 3}[it.specificity]
+        score += 1 if nfac >= 1 else 0
+        score += 1 if nfac >= 2 else 0
+        score += 1 if it.ownership == "strong" and any(c.stance == "practical" and not c.implied for c in it.claims) else 0
+        score += 1 if (_PROBLEM.search(n) and _FIX.search(n)) or _REASON.search(n) else 0
+        if not it.question_answered:
+            score = min(score, 1)
+        it.quality = "strong" if score >= 5 else "good" if score >= 3 else "partial" if score >= 1 else "vague"
+    # ── contradiction (only a real one) ────────────────────────────────────────────────────────
+    for c in it.claims:
+        if c.stance == "no_experience" and not c.implied and graph is not None:
+            comp = graph.get(c.key)
+            if comp and comp.resume_level in ("used_in_project", "strong") and (c.key in ctx.targets or K.name_of(c.key).lower() in n):
+                it.contradictions.append(c.key)
+            if comp and any(i.stance == "practical" for i in comp.direct_items()):
+                it.contradictions.append(c.key)
+    # ── missing information (drives the follow-up) ──────────────────────────────────────────────
+    for k in ctx.targets:
+        c = K.get(k)
+        if not c:
+            continue
+        got = {f for cl in it.claims if cl.key == k for f in cl.facets}
+        have = set(graph.get(k).facets_covered) if graph is not None and graph.get(k) else set()
+        for f in c.facets:
+            if f not in got and f not in have:
+                it.missing_information.append(f"{k}:{f}")
+    if ctx.aspect == "ownership" and it.ownership == "unknown":
+        it.missing_information.append("ownership")
+    it.confidence = 0.85 if it.words >= 6 and it.claims else 0.6 if it.words >= 4 else 0.5
+    if it.uncertainty:
+        it.confidence -= 0.1
+    # ── optional LLM refinement (ambiguous only; strict JSON; add-only) ─────────────────────────
+    if llm is not None and llm_budget is not None and llm_budget[0] > 0 and it.intent == "substantive" and it.words >= 12 \
+            and (not it.claims or (it.quality in ("vague", "partial") and not it.facts and ctx.kind in ("knowledge", "project_probe", "project_walkthrough", "followup"))):
+        llm_budget[0] -= 1
+        _llm_refine(it, ctx, n, graph, llm, resume)
+    return it
+
+
+_STANCES = {"no_experience", "unknown", "learning", "theoretical", "practical", "claim"}
+
+
+def _llm_refine(it: Interpretation, ctx: QuestionContext, n: str, graph, llm, resume) -> None:
+    allowed = list(dict.fromkeys(list(ctx.targets) + [c.key for c in it.claims] + ([t.key for p in (resume.projects if resume else []) if p.short_name == ctx.anchor_project for t in p.technologies])))
+    allowed = [a for a in allowed if a in K.REG][:8]
+    if not allowed:
+        return
+    schema = {"type": "object", "properties": {"claims": {"type": "array", "maxItems": 4, "items": {"type": "object", "properties": {
+        "concept": {"type": "string", "enum": allowed}, "stance": {"type": "string", "enum": sorted(_STANCES)}, "evidence": {"type": "string"}},
+        "required": ["concept", "stance", "evidence"]}}, "ownership": {"type": "string", "enum": ["strong", "some", "none", "unknown"]}}, "required": ["claims", "ownership"]}
+    sys_p = ("You label what an interview candidate said. The candidate may use broken English; judge meaning, not grammar. Output JSON only. "
+             "stance: practical=they personally used/built it; theoretical=explains or would do it but did not do it; learning=only studied it; "
+             "no_experience=they say they have not used it; unknown=they do not know; claim=says yes with no detail. "
+             "Only label concepts the candidate actually talks about. evidence must be copied from the answer.")
+    user = f"Question: {ctx.text}\nAnswer: {it.text}\nConcepts you may label: {', '.join(allowed)}"
+    out = llm.json(sys_p, user, purpose="interpret", schema=schema, max_tokens=cfg.LLM_INTERPRET_MAX_TOKENS, timeout=cfg.LLM_INTERPRET_TIMEOUT_S)
+    if not isinstance(out, dict):
+        it.notes.append("LLM refinement unavailable; deterministic reading kept")
+        return
+    have = {c.key for c in it.claims if not c.implied}
+    added = 0
+    ans_tokens = content_tokens(n)
+    for cl in out.get("claims", [])[:4]:
+        try:
+            key, st, ev = cl["concept"], cl["stance"], str(cl.get("evidence", ""))
+        except (KeyError, TypeError):
+            continue
+        if key not in allowed or st not in _STANCES or key in have:
+            continue
+        evt = content_tokens(ev)
+        if not evt or len(evt & ans_tokens) / max(1, len(evt)) < 0.6:           # evidence must be grounded in the answer
+            continue
+        if st == "practical" and not (_FIRST.search(n) and re.search(r"\b" + _BUILD + r"\b|\b" + _USE + r"\b", n)):
+            st = "theoretical"
+        it.claims.append(Claim(key, st, False, out.get("ownership", "unknown") if out.get("ownership") in ("strong", "some", "none") else "unknown",
+                               K.facets_hit(key, n), clip(ev, 90), 0.4, "LLM-adjudicated"))
+        added += 1
+    if added:
+        it.used_llm = True
+        it.question_answered = True
+        if it.quality == "vague":
+            it.quality = "partial"
+        it.notes.append(f"LLM added {added} validated claim(s)")

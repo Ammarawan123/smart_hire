@@ -1,0 +1,10 @@
+# SmartHire vision pipeline v3 - install with:  pip install -r requirements-v3.txt
+# (use a fresh virtual environment; Python 3.10-3.12 recommended)
+mediapipe==0.10.21          # PINNED: newer builds removed mp.solutions, which Pose/Hands still use
+numpy<2
+opencv-python==4.10.0.84    # if pip complains about numpy, keep this exact version
+onnxruntime                 # emotion model + optional gaze model
+
+# optional - only for the extra tools
+onnx                        # vision_tools.py quantize
+scikit-learn                # fusion_reference.py

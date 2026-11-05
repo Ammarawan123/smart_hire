@@ -1,0 +1,9 @@
+# V59 behaviour layer (add to the V58 requirements)
+numpy>=1.24
+scipy>=1.10            # Student-t baseline transform, DCT for the speaker-drift feature
+# optional, each unlocks one feature; every module still runs without them
+librosa>=0.10          # pYIN pitch (otherwise an autocorrelation fallback is used)
+scikit-learn>=1.3      # only if you want to compare against a logistic/RF stacker in eval
+sentence-transformers>=2.7   # NLI contradiction: cross-encoder/nli-deberta-v3-xsmall
+kokoro-onnx            # optional TTS (also needs the kokoro .onnx model + voices file)
+sounddevice            # already required by V58 for audio

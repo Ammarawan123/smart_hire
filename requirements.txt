@@ -1,0 +1,6 @@
+# Minimal core: typed interview, simulation, report generation, fusion maths, tests. No models required.
+numpy<2          # mediapipe 0.10.21 (vision) needs numpy<2
+scipy>=1.10
+pymupdf>=1.24
+pdfplumber>=0.10
+python-docx>=1.0

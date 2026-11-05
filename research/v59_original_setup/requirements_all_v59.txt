@@ -1,0 +1,24 @@
+# SmartHire V59 — everything in one file.  Use a FRESH virtual environment, Python 3.10-3.12 (mediapipe 0.10.21 needs numpy<2).
+# Install order matters for torch: first the CPU build of torch (command in INSTALL_V59.bat), then:  pip install -r requirements_all_v59.txt
+numpy<2
+scipy
+opencv-python==4.10.0.84
+mediapipe==0.10.21
+onnxruntime
+sounddevice
+soundfile
+librosa
+praat-parselmouth
+transformers
+sentence-transformers
+huggingface_hub
+faster-whisper
+silero-vad
+piper-tts
+kokoro-onnx
+pymupdf
+pdfplumber
+python-docx
+scikit-learn
+rich
+reportlab
