@@ -1,0 +1,90 @@
+{
+  "rejected": {
+    "analytical_thinking": {
+      "count": 2,
+      "name": "Analytical Thinking",
+      "reason": "not confirmed by NuExtract"
+    },
+    "cross_functional_collaboration": {
+      "count": 2,
+      "name": "Cross-functional Collaboration",
+      "reason": "not confirmed by NuExtract"
+    },
+    "feature_engineering": {
+      "count": 2,
+      "name": "Feature Engineering",
+      "reason": "not confirmed by NuExtract"
+    },
+    "n8n": {
+      "count": 2,
+      "name": "n8n",
+      "reason": "not confirmed by NuExtract"
+    },
+    "railway": {
+      "count": 2,
+      "name": "Railway",
+      "reason": "not confirmed by NuExtract"
+    },
+    "recommendation": {
+      "count": 2,
+      "name": "Recommendation",
+      "reason": "not confirmed by NuExtract"
+    },
+    "self_directed_learning": {
+      "count": 2,
+      "name": "Self-directed Learning",
+      "reason": "not confirmed by NuExtract"
+    },
+    "statistical_analysis": {
+      "count": 2,
+      "name": "Statistical Analysis",
+      "reason": "not confirmed by NuExtract"
+    },
+    "systems": {
+      "count": 2,
+      "name": "Systems",
+      "reason": "not confirmed by NuExtract"
+    },
+    "transformer_models": {
+      "count": 2,
+      "name": "Transformer Models",
+      "reason": "not confirmed by NuExtract"
+    }
+  },
+  "skills": {
+    "collaborative_filtering": {
+      "aliases": [
+        "collaborative filtering"
+      ],
+      "category": "programming_languages",
+      "count": 1,
+      "first_seen": "2026-11-07T14:55:06+00:00",
+      "last_seen": "2026-11-07T14:55:06+00:00",
+      "name": "Collaborative Filtering",
+      "source": "nuextract-resume"
+    },
+    "pythonanywhere": {
+      "aliases": [
+        "pythonanywhere"
+      ],
+      "category": "programming_languages",
+      "count": 1,
+      "first_seen": "2026-11-07T14:55:06+00:00",
+      "last_seen": "2026-11-07T14:55:06+00:00",
+      "name": "PythonAnywhere",
+      "source": "nuextract-resume"
+    },
+    "stable_diffusion": {
+      "aliases": [
+        "stable diffusion"
+      ],
+      "category": "programming_languages",
+      "count": 1,
+      "first_seen": "2026-11-07T14:55:06+00:00",
+      "last_seen": "2026-11-07T14:55:06+00:00",
+      "name": "Stable Diffusion",
+      "source": "nuextract-resume"
+    }
+  },
+  "version": 1
+}

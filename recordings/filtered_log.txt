@@ -1,0 +1,1 @@
+[LOW ENERGY rms=0.0033 < 0.006] <chunk not sent to model>

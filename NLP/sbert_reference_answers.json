@@ -1,0 +1,20 @@
+
+{
+  "questions": [
+    {
+      "id": 1,
+      "question": "Tell me about your background and your experience with Python.",
+      "reference_answer": "I am an Artificial Intelligence student with experience using Python for programming, machine learning, and data analysis. I have applied these skills in academic projects."
+    },
+    {
+      "id": 2,
+      "question": "Describe an AI project you worked on and explain your own contribution.",
+      "reference_answer": "I worked on an AI project involving computer vision. I helped prepare the dataset, use Python and an object detection model, and evaluate how the model identifies objects. My contribution involved implementing and testing the project's AI components."
+    },
+    {
+      "id": 3,
+      "question": "How do you find and fix a bug in your Python code?",
+      "reference_answer": "I reproduce the error, read the error message, inspect the relevant code and inputs, identify the likely cause, make a change, and test it to verify the fix."
+    }
+  ]
+}

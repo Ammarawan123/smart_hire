@@ -1,0 +1,10 @@
+# smartHIRE Ai — Vocal Stress & Deception Module
+# Standalone, no server/API — CPU-only inference target
+transformers
+librosa
+praat-parselmouth
+numpy
+sounddevice
+rich
+torch
+torchaudio

@@ -1,0 +1,7 @@
+# Core interview engine (typed mode) — standard library only, plus:
+pymupdf>=1.24          # PDF words with coordinates (preferred; you already have it)
+pdfplumber>=0.10       # PDF fallback
+python-docx>=1.0       # optional: .docx résumés
+# Voice (unchanged from V51): piper TTS (binary + voice .onnx), optional faster-whisper / RealtimeSTT for --stt whisper
+# Local LLM (optional): llama-server.exe (llama.cpp) + qwen2.5-1.5b-instruct-q4_k_m.gguf
+# Tests only: reportlab (to regenerate fixtures/real_layout_render.pdf)

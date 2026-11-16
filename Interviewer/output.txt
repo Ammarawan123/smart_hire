@@ -1,0 +1,399 @@
+ python main.py interview --resume "C:\Users\HP\Downloads\SmartHire_final_v2\SmartHire\Muhammad_Ammar_CV (1).pdf" --jd "C:\Users\HP\Downloads\SmartHire_final_v2\SmartHire\jobd.txt" --stt typed --stop-server --minutes=10 --profile-json=outputs\candidate_profile.json
+============================================================
+SMART HIRE V58 — EVIDENCE-DRIVEN ADAPTIVE INTERVIEWER
+============================================================
+
+[1/5] Reading résumé and job description…
+  Résumé : name=Muhammad Ammar | education=0 | experience=3 | projects=1 | skills=29 (29 listed) | certs=3 | layout=single | sections=['summary', 'skills', 'projects', 'experience', 'certifications', 'coursework']
+  Projects: ['AI Agent for Social Media Content Automation']
+  JD     : title='Trainee Software Developer' | seniority=junior | required=16 preferred=1 domain-context=0 | behavioural=['adaptability', 'analytical_thinking', 'attention_to_detail', 'communication', 'decision_making', 'drive', 'independence', 'learning_ability', 'planning', 'problem_solving', 'teamwork'] | ignored sections=[]
+  parse time: 0.60s
+  candidate profile written: outputs\candidate_profile.json
+
+[2/5] Local LLM…
+  LLM: launching llama-server.exe with qwen2.5-1.5b-instruct-q4_k_m.gguf (log: C:\Users\HP\Downloads\SmartHire_final_v2\SmartHire\outputs\cache\interviewer\llama_server_v58.log)
+  LLM: ready (started, 5.6s) — qwen2.5-1.5b-instruct-q4_k_m.gguf
+
+[3/5] Blueprint (résumé ↔ role) — résumé evidence only, NOT interview proof
+  Résumé shows use in a project : Generative AI, LLMs, Prompt Engineering, Python, AI/ML libraries and frameworks, Data analysis
+  Listed only (claims to verify): SQL Server, REST API
+  No résumé support             : RAG, Software development lifecycle, Object-Oriented Programming, C#, ASP.NET, Angular, Application architecture, Software engineering practices
+  Projects by JD value          : AI Agent for Social Media Content Automation (12.3)
+
+[4/5] Voice…
+  TTS: piper ready (voice en_US-lessac-medium.onnx, verified audible)
+  TTS: piper ready
+  STT: typed
+
+[5/5] Starting interview…
+
+Interviewer: Hi Muhammad, I'm Smarty, and I'll be interviewing you for the Trainee Software Developer role today. I've read your résuméand the role description, so I'll ask about your own work rather than generic questions. This should take around ten minutes. Tell me abit about your background and what draws you to the role.
+You: hello my name is muhammad ammar i am from dawood university of engineering and technology currently i am working on 360 xpert solution as  software developer in which we are working on frontend and backend or multi agent system  production rags mlops and llmops
+Interviewer: Thanks, that gives me a good starting point. Let's talk about AI Agent for Social Media Content Automation (Python · n8n ·Groq LLMs · Stable Diffusion). What problem does it solve, and which parts did you build yourself — for example the parts using Python,Groq and Hugging Face Transformers?
+You: i am build to solve the problem of many buisness of manual posting convert in to automatic posting with the help of this ai agent for social media content creation
+Interviewer: In AI Agent for Social Media Content Automation, which parts did you write or train yourself, and which came from libraries, pretrained models or tutorials?
+You: we use the pretrained model of meta for caption and hashtags of post generation and use stable diffusion for image genration realated to post  use n8n for auto posting on different social media platform
+Interviewer: Thanks, so Python is something you've learned about rather than built with so far. Can you provide more details on the deployment evidence for the AI Agent for Social Media Content Automation? This would help us understand how the system is integrated and tested in a real-world environment.
+You: yes i am deployed on railway platform or also tested on different social media account with posting 
+Interviewer: Thanks, that gives me a clearer picture of AI Agent for Social Media Content Automation. Let's move to the technical side of the role. In your own words, what is object-oriented programming? Give me an example from code you've written, for instance classes in a Python project.
+You: object oriented programming is class based programming in which we can make a object of those class to make a code reuable
+Interviewer: Thanks, that's concrete enough for Object-Oriented Programming. This role uses Angular, ASP.NET, C# and SQL Server. Have you used any of these, even in a small project? Tell me which one is closest to something you've built.
+You: yes we can build a flappy bird game on c# also use sql for storeing data 
+Interviewer: Thanks, that gives me a clearer picture of Angular. You said you've worked with C#. Pick one concrete thing you did with it and walk me through how it worked.
+You: in flappy bird how we can calculate a score 
+Interviewer: I get the outline of it. Let me ask for a little more detail. In AI Agent for Social Media Content Automation your code called Groq. What did the HTTP request and the response look like, and how did you handle errors?
+You: the http response look like in json format we use the try catch to handle the error 
+Interviewer: Good, that tells me how you approached AI Agent for Social Media Content Automation. Which HTTP methods would you use to read, create, update and delete a record, and why?
+You: we use post method for send data backend to frontend , use create method for generate a social media post , use delete for delete a socaial media post and update a socaial media post
+Interviewer: Thank you, that helps me understand REST API. Have you worked with Retrieval-Augmented Generation, or RAG? If yes, walk methrough how you'd build the retrieval pipeline, from document ingestion to a grounded answer.
+You: Phase 1: Document Ingestion & Parsing
+Interviewer: I understand the general idea, and I'd like to make it more concrete. Can you provide more details on how RAG (Retrieval-Augmented Generation) was utilized in Phase 1 of the document ingestion and parsing process?
+You: The pipeline begins by ingesting heterogeneous data sources (PDFs, Markdown, HTML, APIs, databases).
+Interviewer: Thanks, that gives me a clearer picture of RAG. Walk me through how a feature goes from an idea to released software, in the steps you would follow.
+You: 
+You: Loaders & Layout Parsing: Standard text extraction often fails on multi-column documents, tables, or charts. I use layout-aware parsers (like PyMuPDF, Unstructured, or LlamaParse) to preserve structural context (headers, lists, and tables).
+Interviewer: I understand the general idea, and I'd like to make it more concrete. Could you elaborate on how the software development lifecycle impacts the design and implementation of layout-aware parsers for handling complex documents?
+You: 
+You: Metadata Enrichment: Every ingested document is tagged with rich metadata at birth—such as source_url, author, creation_date, access_permissions, and document_category. This metadata is crucial for later downstream filtering.
+Interviewer: I understand the general idea, and I'd like to make it more concrete. How would you structure an ASP.NET application that lists students from a database and lets a user add a new one?
+You: 
+You: Phase 2: Chunking Strategy (Semantic Splitting)
+Interviewer: I understand the general idea, and I'd like to make it more concrete. Can you explain how the Semantic Splitting techniquein Phase 2 of your approach aligns with ASP.NET practices for optimizing performance and scalability?
+You: Feeding entire documents into an embedding model dilutes semantic relevance, while fixed-character splitting often cuts sentences or paragraphs in half.
+Interviewer: Thank you, that helps me understand ASP.NET. Now a couple of questions about how you work in a team. Tell me about a time you worked with other people, for example in a group project or a society activity. When someone else's part affected yours, what did you do?
+You: 
+You: Hierarchical / Semantic Chunking: I split text based on natural semantic boundaries (using markdown headers, paragraph breaks, or sentence transformers that detect shifts in meaning).
+Interviewer: Thanks for the example. In AI Agent for Social Media Content Automation, what was the hardest thing to get working, and how did you work out the cause?
+You: 
+You: Chunk Sizing: Typically, I target a chunk size of 512 to 1024 tokens with an overlap of 10% to 15% to ensure context continuity across chunk boundaries. For tables, I convert them into Markdown or structured JSON representations before chunking so they don't lose their relational meaning.
+Interviewer: You said you learned Python. How did you go about learning it, and how long before you could use it on your own?
+You: 
+You: Phase 3: Embedding & Vector Storage
+Interviewer: I get the outline of it. Let me ask for a little more detail. Before we wrap up, is there anything about your experience you would like me to know, or any question for me?
+You: Once chunks are prepared, they need to be mapped into a high-dimensional vector space.
+Interviewer: Thanks so much for your time today, Muhammad. That wraps up our conversation, and we'll be in touch about next steps. Havea great day!
+
+============================================================
+INTERVIEW COMPLETE
+============================================================
+======================================================================
+SMARTHIRE V58 — INTERVIEW REPORT
+======================================================================
+
+CANDIDATE  Muhammad Ammar
+  Projects  : AI Agent for Social Media Content Automation
+  Experience: IT Support Intern @ Shipyard Engineering Works, for engineering teams. @ , systematic troubleshooting methodologies. @ 
+  Parse     : name=Muhammad Ammar | education=0 | experience=3 | projects=1 | skills=29 (29 listed) | certs=3 | layout=single | sections=['summary', 'skills', 'projects', 'experience', 'certifications', 'coursework']
+
+ROLE  Trainee Software Developer @  | seniority: junior
+  title='Trainee Software Developer' | seniority=junior | required=16 preferred=1 domain-context=0 | behavioural=['adaptability', 'analytical_thinking', 'attention_to_detail', 'communication', 'decision_making', 'drive', 'independence', 'learning_ability', 'planning', 'problem_solving', 'teamwork'] | ignored sections=[]
+
+INTERVIEW  19 questions | 8.1 min (speaking+answering estimate)
+  Required competencies: 16 | asked 11 | resolved 6 | validated 1
+  Weighted coverage: asked 73% | resolved 42% | validated 6%   (résumé alone adds 0%)
+  Résumé projects sampled: 1/1 | behavioural areas with evidence: 0/11
+
+TECHNICAL COMPETENCY REPORT (interview evidence; résumé shown separately)
+  Competency                        Imp Résumé            Interview status          Conf  Asked Valid
+  Generative AI                     2   used in project   UNKNOWN                   0.0   yes   no
+  LLMs                              2   multiple projects UNKNOWN                   0.0   yes   no
+  RAG                               2   none              UNKNOWN                   0.0   yes   no
+  Prompt Engineering                2   multiple projects UNKNOWN                   0.0   no    no
+  Python                            3   used in project   LEARNING_ONLY             0.67  yes   no
+      ↳ “we use the pretrained model of meta for caption and hashtags of post generation and use s…”
+  AI/ML libraries and frameworks    2   used in project   UNKNOWN                   0.0   no    no
+  Software development lifecycle    2   none              THEORETICAL               0.6   yes   no
+      ↳ “this metadata is crucial for later downstream filtering”
+  Object-Oriented Programming       3   none              THEORETICAL               0.68  yes   no
+      ↳ “object oriented programming is class based programming in which we can make a object of t…”
+      · evidence areas shown: class_object
+  C#                                2   none              THEORETICAL               0.62  yes   no
+      ↳ “yes we can build a flappy bird game on c# also use sql for storeing data”
+  ASP.NET                           2   none              THEORETICAL               0.67  yes   no
+      ↳ “feeding entire documents into an embedding model dilutes semantic relevance, while fixed-…”
+      · evidence areas shown: data
+  Angular                           2   none              UNKNOWN                   0.0   yes   no
+  SQL Server                        2   listed only       UNKNOWN                   0.0   yes   no
+  REST API                          2   listed only       PRACTICAL                 0.76  yes   yes
+      ↳ “we use post method for send data backend to frontend , use create method for generate a s…”
+      · evidence areas shown: methods
+  Application architecture          2   none              UNKNOWN                   0.0   no    no
+  Software engineering practices    2   none              UNKNOWN                   0.0   no    no
+  Data analysis                     1   multiple projects UNKNOWN                   0.0   no    no
+
+SOFT SKILLS (only from the candidate's own examples)
+  Adaptability                   strength=0.00  not covered
+  Drive & attitude               strength=0.00  not covered
+  Communication                  strength=0.30  asked, weak evidence
+  Learning ability               strength=0.00  asked, weak evidence
+  Attention to detail            strength=0.00  not covered
+  Planning & meeting deadlines   strength=0.00  not covered
+  Analytical thinking            strength=0.00  not covered
+  Problem solving                strength=0.00  asked, weak evidence
+  Decision making                strength=0.00  not covered
+  Teamwork                       strength=0.00  asked, weak evidence
+  Working independently          strength=0.00  not covered
+
+SUMMARY
+  Validated — hands-on (described doing it): REST API
+  Validated — conceptual (JD asks only for exposure): —
+  Practical, not yet validated            : —
+  Theoretical / conceptual only           : Software development lifecycle, Object-Oriented Programming, C#, ASP.NET
+  Learning only                           : Python
+  Explicit no experience                  : —
+  Said they don't know                    : —
+  Contradicted                            : —
+  Implied by other answers, not asked     : —
+  Not asked (unresolved)                  : Prompt Engineering, AI/ML libraries and frameworks, Application architecture, Software engineering practices, Data analysis
+  Résumé claims never probed              : TensorFlow, PyTorch, SQL, Git, Cloud
+
+Behaviour layer ran with: text. Cues are advisory and person-relative; see the 'behavior' section. Never an automated verdict.
+No audio/video behavioural analysis was run by this text/voice runner (advisory signals are never an automated verdict).
+
+SYSTEM
+  LLM: {"calls": 9, "failures": {"malformed_json": 4}, "avg_latency_s": {"interpret": 7.32, "followup": 2.33}}
+  per-turn ms (avg): {'total_ms': 2589.5, 'plan_ms': 543.0, 'understand_ms': 2045.9}
+  TTS: {'backend': 'piper', 'voice': 'en_US-lessac-medium.onnx', 'device': '[1, 3]', 'spoken': 20, 'synth_ms': [2463.6, 931.5, 1501.7, 504.0, 862.1, 894.0, 1235.6, 791.4, 1181.2, 991.2, 1110.2, 922.7, 761.8, 886.7, 985.5, 968.1, 1190.3, 744.6, 517.8, 1015.7, 706.0], 'first_audio_ms': [931.5, 1516.4, 504.0, 862.1, 894.0, 1235.6, 791.4, 1181.2, 991.2, 1110.2, 922.7, 761.8, 886.7, 985.5, 970.1, 1190.3, 746.6, 517.8, 1015.7, 706.0], 'failures': [], 'verified': True}  STT: typed
+
+BEHAVIOUR LAYER (advisory)
+  answers analysed: 19 | flagged for verification: 0 | probes: 0 (verified 0, unresolved 0, inconsistent 0)
+  Behavioural cues are weak, person-dependent signals (Luke et al. 2023; Caso et al. 2023). 'needs verification' means a claim lacked checkable detail or conflicted with earlier statements; it does not mean the candidate lied. Voice/face evidence alone never raises a flag. Integrity items are experimental.
+
+Full JSON report: C:\Users\HP\Downloads\SmartHire_final_v2\SmartHire\outputs\interview_report.json
+============================================================
+SMART HIRE V58 — EVIDENCE-DRIVEN ADAPTIVE INTERVIEWER
+============================================================
+
+[1/5] Reading résumé and job description…
+  Résumé : name=Muhammad Ammar | education=0 | experience=3 | projects=1 | skills=29 (29 listed) | certs=3 | layout=single | sections=['summary', 'skills', 'projects', 'experience', 'certifications', 'coursework'] (cached)
+  Projects: ['AI Agent for Social Media Content Automation']
+  JD     : title='Trainee Software Developer' | seniority=junior | required=16 preferred=1 domain-context=0 | behavioural=['adaptability', 'analytical_thinking', 'attention_to_detail', 'communication', 'decision_making', 'drive', 'independence', 'learning_ability', 'planning', 'problem_solving', 'teamwork'] | ignored sections=[] (cached)
+  parse time: 0.07s
+  candidate profile written: outputs\candidate_profile.json
+
+[2/5] Local LLM…
+  LLM: launching llama-server.exe with qwen2.5-1.5b-instruct-q4_k_m.gguf (log: C:\Users\HP\Downloads\SmartHire_final_v2\SmartHire\outputs\cache\interviewer\llama_server_v58.log)
+  LLM: ready (started, 4.3s) — qwen2.5-1.5b-instruct-q4_k_m.gguf
+INFO: Created TensorFlow Lite XNNPACK delegate for CPU.
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+W0000 00:00:1793724545.875070   11320 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+W0000 00:00:1793724545.879445   14616 face_landmarker_graph.cc:174] Sets FaceBlendshapesGraph acceleration to xnnpack by default.
+W0000 00:00:1793724545.888779   11320 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+W0000 00:00:1793724545.895603   22240 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+W0000 00:00:1793724545.914699   20812 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+  Vision: camera thread started
+
+[3/5] Blueprint (résumé ↔ role) — résumé evidence only, NOT interview proof
+  Résumé shows use in a project : Generative AI, LLMs, Prompt Engineering, Python, AI/ML libraries and frameworks, Data analysis
+  Listed only (claims to verify): SQL Server, REST API
+  No résumé support             : RAG, Software development lifecycle, Object-Oriented Programming, C#, ASP.NET, Angular, Application architecture, Software engineering practices
+  Projects by JD value          : AI Agent for Social Media Content Automation (12.3)
+
+[4/5] Voice…
+W0000 00:00:1793724545.981746   21388 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+W0000 00:00:1793724546.038972   21388 inference_feedback_manager.cc:114] Feedback manager requires a model with a single signature inference. Disabling support for feedback tensors.
+  TTS: piper ready (voice en_US-lessac-medium.onnx, verified audible)
+  TTS: piper ready
+  STT: whisper:base.en
+
+[5/5] Starting interview…
+
+Interviewer: Hi Muhammad, I'm Smarty, and I'll be interviewing you for the Trainee Software Developer role today. I've read your résuméand the role description, so I'll ask about your own work rather than generic questions. This should take around ten minutes. Tell me abit about your background and what draws you to the role.
+W0000 00:00:1793724552.324831    8236 landmark_projection_calculator.cc:186] Using NORM_RECT without IMAGE_DIMENSIONS is only supportedfor the square ROI. Provide IMAGE_DIMENSIONS or use PROJECTION_MATRIX.
+You: Hello my name is Mohammad Amar, I am from the University of Indian Indian Technology. Currently I am working on 360X short solution as an AI backend developer in which we are making a multi agent system, RAGS, machine learning model, deep learning model, neural networks and other AI systems.
+   ┆ ANSWER UNDERSTANDING
+   ┆   intent=substantive quality=good specificity=medium ownership=some words=50 answered=True
+   ┆   · Machine Learning             PRACTICAL      direct  facets=['model_choice'] 
+   ┆   · Deep Learning                PRACTICAL      direct  facets=[] 
+   ┆ EVIDENCE CHANGES
+   ┆   Machine Learning: UNKNOWN->PRACTICAL (conf 0.76, facets ['model_choice'])
+   ┆   Deep Learning: UNKNOWN->PRACTICAL (conf 0.70, facets [])
+   ┆   soft:Communication strength 0.30
+   ┆ QUESTION DECISION
+   ┆   phase=resume | kind=project_walkthrough | followup=- | level=basic | aspect=ownership | targets=['Python', 'LLM APIs', 'Hugging Face Transformers'] | project=AI Agent for Social Media Content Automation | source=deterministic
+   ┆   why_this_question: highest-value unexplored résumé project (JD value 12.3; covers Python, LLMs, Generative AI, AI/ML libraries and frameworks)
+   ┆   what_new_evidence_it_seeks: what AI Agent for Social Media Content Automation does and which parts the candidate personally built
+   ┆   why_previous_answer_was_insufficient: no previous question about this project
+   ┆   clock=0.6 min (virtual) | coverage 9% addressed / 0% validated
+Interviewer: Thanks, that gives me a good starting point. Let's talk about AI Agent for Social Media Content Automation (Python · n8n ·Groq LLMs · Stable Diffusion). What problem does it solve, and which parts did you build yourself — for example the parts using Python,Groq and Hugging Face Transformers?
+   ⏱ understanding 30 ms | planning 9120 ms | total 9150 ms
+You: I am solve the problem of manual posting in the social media. We are making for this to solve the problem in which we can easily automatic way, in automatic way, to, in a little automatic way to, in a little automatic way to, in a little automatic way to post automatic post. It can generate a post automatic and also posting on our different social media account in which we are using the Grog for generating the hashtags and content software with this and this post and the stable diffusion for generating the image related to this postin which we can solve the manual auto posting problem we can convert into the automatic one click problem it can reduce the time over 98%
+   ┆ ANSWER UNDERSTANDING
+   ┆   intent=substantive quality=good specificity=medium ownership=some words=125 answered=True
+   ┆   fact[challenge]: ran into problems
+   ┆   note: LLM refinement unavailable; deterministic reading kept
+   ┆ EVIDENCE CHANGES
+   ┆   project AI Agent for Social Media Content Automation: challenge covered
+   ┆ QUESTION DECISION
+   ┆   phase=resume | kind=project_probe | followup=result_eval | level=impl | aspect=evaluation | targets=[] | project=AI Agent for Social Media Content Automation | source=deterministic
+   ┆   why_this_question: project follow-up on AI Agent for Social Media Content Automation: next evidence area is 'evaluation'
+   ┆   what_new_evidence_it_seeks: evaluation evidence for AI Agent for Social Media Content Automation
+   ┆   why_previous_answer_was_insufficient: no evidence yet of how the result was measured
+   ┆   clock=2.0 min (virtual) | coverage 9% addressed / 0% validated
+Interviewer: You mentioned that you ran into problems. How did you check that AI Agent for Social Media Content Automation actually worked well? Which metrics or tests did you use, and what did you get?
+   ⏱ understanding 16377 ms | planning 9151 ms | total 25529 ms
+You: We can use the observability and monitoring through different platforms like Promithius and Grappana and check the security guardrails and apply the evails and guardrails to help and identify the different security checks.
+   ┆ ANSWER UNDERSTANDING
+   ┆   intent=substantive quality=partial specificity=none ownership=some words=33 answered=True [LLM-assisted]
+   ┆   · Python                       PRACTICAL      direct  facets=[] · LLM-adjudicated
+   ┆   note: LLM added 1 validated claim(s)
+   ┆ EVIDENCE CHANGES
+   ┆   Python: UNKNOWN->PRACTICAL (conf 0.67, facets [])
+   ┆ QUESTION DECISION
+   ┆   phase=resume | kind=project_probe | followup=implementation | level=impl | aspect=deployment | targets=[] | project=AI Agent forSocial Media Content Automation | source=llm
+   ┆   why_this_question: project follow-up on AI Agent for Social Media Content Automation: next evidence area is 'deployment'
+   ┆   what_new_evidence_it_seeks: deployment evidence for AI Agent for Social Media Content Automation
+   ┆   why_previous_answer_was_insufficient: how it runs end-to-end is unclear
+   ┆   clock=2.5 min (virtual) | coverage 9% addressed / 9% validated
+Interviewer: Good, that tells me how you approached AI Agent for Social Media Content Automation. Can you provide more details on how you plan to demonstrate the deployment evidence of the AI Agent for Social Media Content Automation?
+   ⏱ understanding 4379 ms | planning 4940 ms | total 9318 ms
+You: I am deployed on the railway to use, I always post the code on GitHub in which after this we can deploy it on the railway, make a production grid system with proper monitoring with proper monitoring. I have also dockerized and I have also dockerized and containerized our application and then deployed on the runway.
+   ┆ ANSWER UNDERSTANDING
+   ┆   intent=substantive quality=partial specificity=low ownership=some words=56 answered=True
+   ┆   · Git                          THEORETICAL    direct  facets=[] · hypothetical / design answer
+   ┆   fact[deployment]: deployed it
+   ┆ EVIDENCE CHANGES
+   ┆   Git: UNKNOWN->THEORETICAL (conf 0.62, facets [])
+   ┆   project AI Agent for Social Media Content Automation: deployment covered
+   ┆ QUESTION DECISION
+   ┆   phase=technical | kind=knowledge | followup=knowledge_validation | level=basic | aspect=- | targets=['Object-Oriented Programming'] | project=- | source=deterministic
+   ┆   why_this_question: Object-Oriented Programming is a required JD competency (importance 3) with no interview evidence yet (value 3.67)
+   ┆   what_new_evidence_it_seeks: evidence of class_object, pillars, example
+   ┆   why_previous_answer_was_insufficient: no résumé support: the requirement is unverified
+   ┆   rejected/considered: ['Angular: value 3.44', 'SQL Server: value 2.93', 'REST API: value 2.47']
+   ┆   clock=3.2 min (virtual) | coverage 18% addressed / 9% validated
+Interviewer: Thanks, that's concrete enough for AI Agent for Social Media Content Automation. Let's move to the technical side of the role. In your own words, what is object-oriented programming? Give me an example from code you've written, for instance classes in a Python project.
+   ⏱ understanding 32 ms | planning 6871 ms | total 6919 ms
+You: in which we can use the pillar of OOP which is basically encapsulation and inheritance in our project. The object oriented programming is the class base and class base programming in which it can depend on the fourth pillars like Fashpila is inheritance, encapsulation, polymorphism and F section. We use in our project is encapsulation and inheritance. Inconsulation to secure and hide our data and inheritance or calling the object with their help of their parent and child.
+   ┆ ANSWER UNDERSTANDING
+   ┆   intent=substantive quality=good specificity=medium ownership=some words=78 answered=True
+   ┆   · Object-Oriented Programming  PRACTICAL      direct  facets=['class_object', 'pillars'] · hypothetical / design answer
+   ┆ EVIDENCE CHANGES
+   ┆   Object-Oriented Programming: UNKNOWN->DEMONSTRATED (conf 0.93, facets ['class_object', 'pillars'])
+   ┆ QUESTION DECISION
+   ┆   phase=behavioural | kind=behavioural | followup=- | level=basic | aspect=- | targets=[] | project=- | source=deterministic
+   ┆   why_this_question: Teamwork is a JD behavioural competency with no evidence yet — grounded in their résumé
+   ┆   what_new_evidence_it_seeks: a concrete situation, the candidate's own action and the result
+   ┆   why_previous_answer_was_insufficient: behavioural area not yet covered
+   ┆   clock=4.1 min (virtual) | coverage 18% addressed / 18% validated
+Interviewer: That makes sense. You touched on classes and objects and the OOP pillars. Now a couple of questions about how you work in a team. Tell me about a time you worked with other people, for example in a group project or a society activity. When someone else's part affected yours, what did you do?
+   ⏱ understanding 19 ms | planning 5609 ms | total 5628 ms
+You: I am working on with our team like we can divide our tasks on multiples developers in which we can give the tasks according to their levels.
+   ┆ ANSWER UNDERSTANDING
+   ┆   intent=substantive quality=vague specificity=none ownership=some words=27 answered=True
+   ┆ EVIDENCE CHANGES
+   ┆   soft:Teamwork strength 0.85
+   ┆ QUESTION DECISION
+   ┆   phase=behavioural | kind=behavioural | followup=- | level=basic | aspect=- | targets=[] | project=AI Agent for Social Media Content Automation | source=deterministic
+   ┆   why_this_question: Problem solving is a JD behavioural competency with no evidence yet — grounded in their résumé
+   ┆   what_new_evidence_it_seeks: a concrete situation, the candidate's own action and the result
+   ┆   why_previous_answer_was_insufficient: behavioural area not yet covered
+   ┆   clock=4.6 min (virtual) | coverage 18% addressed / 18% validated
+Interviewer: I understand the general idea, and I'd like to make it more concrete. In AI Agent for Social Media Content Automation, what was the hardest thing to get working, and how did you work out the cause?
+   ⏱ understanding 0 ms | planning 2011 ms | total 2011 ms
+You: the hardest thing is to integrate a model agents which is a very
+   ┆ ANSWER UNDERSTANDING
+   ┆   intent=substantive quality=partial specificity=none ownership=unknown words=13 answered=True [LLM-assisted]
+   ┆   · Python                       LEARNING       direct  facets=[] · LLM-adjudicated
+   ┆   note: LLM added 1 validated claim(s)
+   ┆ EVIDENCE CHANGES: none
+   ┆ QUESTION DECISION
+   ┆   phase=closing | kind=closing | followup=- | level=basic | aspect=- | targets=[] | project=- | source=deterministic
+   ┆   why_this_question: time budget reached
+   ┆   what_new_evidence_it_seeks: final remarks
+   ┆   why_previous_answer_was_insufficient: -
+   ┆   rejected/considered: ["behavioural_context:['AI Agent for Social Media Content Automation']: duplicate_of_previous"]
+   ┆   clock=5.0 min (virtual) | coverage 18% addressed / 18% validated
+Interviewer: Thanks, so Python is something you've learned about rather than built with so far. Before we wrap up, is there anything about your experience you would like me to know, or any question for me?
+   ⏱ understanding 3417 ms | planning 934 ms | total 4351 ms
+You: Yes, I have a question. Can you share your experience about my interview?
+   ┆ ANSWER UNDERSTANDING
+   ┆   intent=substantive quality=vague specificity=none ownership=unknown words=13 answered=False
+   ┆ EVIDENCE CHANGES: none
+   ┆ QUESTION DECISION
+   ┆   phase=closing | kind=closing | followup=- | level=basic | aspect=- | targets=[] | project=- | source=deterministic
+   ┆   why_this_question: closing answered
+   ┆   what_new_evidence_it_seeks: final remarks
+   ┆   why_previous_answer_was_insufficient: -
+   ┆   clock=5.3 min (virtual) | coverage 18% addressed / 18% validated
+Interviewer: Thanks so much for your time today, Muhammad. That wraps up our conversation, and we'll be in touch about next steps. Havea great day!
+
+============================================================
+INTERVIEW COMPLETE
+============================================================
+======================================================================
+SMARTHIRE V58 — INTERVIEW REPORT
+======================================================================
+
+CANDIDATE  Muhammad Ammar
+  Projects  : AI Agent for Social Media Content Automation
+  Experience: IT Support Intern @ Shipyard Engineering Works, for engineering teams. @ , systematic troubleshooting methodologies. @ 
+  Parse     : name=Muhammad Ammar | education=0 | experience=3 | projects=1 | skills=29 (29 listed) | certs=3 | layout=single | sections=['summary', 'skills', 'projects', 'experience', 'certifications', 'coursework']
+
+ROLE  Trainee Software Developer @  | seniority: junior
+  title='Trainee Software Developer' | seniority=junior | required=16 preferred=1 domain-context=0 | behavioural=['adaptability', 'analytical_thinking', 'attention_to_detail', 'communication', 'decision_making', 'drive', 'independence', 'learning_ability', 'planning', 'problem_solving', 'teamwork'] | ignored sections=[]
+
+INTERVIEW  8 questions | 5.3 min (speaking+answering estimate)
+  Required competencies: 16 | asked 2 | resolved 2 | validated 2
+  Weighted coverage: asked 18% | resolved 18% | validated 18%   (résumé alone adds 0%)
+  Résumé projects sampled: 1/1 | behavioural areas with evidence: 1/11
+
+TECHNICAL COMPETENCY REPORT (interview evidence; résumé shown separately)
+  Competency                        Imp Résumé            Interview status          Conf  Asked Valid
+  Generative AI                     2   used in project   UNKNOWN                   0.0   no    no
+  LLMs                              2   multiple projects UNKNOWN                   0.0   no    no
+  RAG                               2   none              UNKNOWN                   0.0   no    no
+  Prompt Engineering                2   multiple projects UNKNOWN                   0.0   no    no
+  Python                            3   used in project   PRACTICAL                 0.75  yes   yes
+      ↳ “We can use the observability and monitoring through different platforms like Promithius a…”
+  AI/ML libraries and frameworks    2   used in project   UNKNOWN                   0.0   no    no
+  Software development lifecycle    2   none              UNKNOWN                   0.0   no    no
+  Object-Oriented Programming       3   none              DEMONSTRATED              0.93  yes   yes
+      ↳ “in which we can use the pillar of oop which is basically encapsulation and inheritance in…”
+      · evidence areas shown: class_object, pillars
+  C#                                2   none              UNKNOWN                   0.0   no    no
+  ASP.NET                           2   none              UNKNOWN                   0.0   no    no
+  Angular                           2   none              UNKNOWN                   0.0   no    no
+  SQL Server                        2   listed only       UNKNOWN                   0.0   no    no
+  REST API                          2   listed only       UNKNOWN                   0.0   no    no
+  Application architecture          2   none              UNKNOWN                   0.0   no    no
+  Software engineering practices    2   none              UNKNOWN                   0.0   no    no
+  Data analysis                     1   multiple projects UNKNOWN                   0.0   no    no
+
+SOFT SKILLS (only from the candidate's own examples)
+  Adaptability                   strength=0.00  not covered
+  Drive & attitude               strength=0.00  not covered
+  Communication                  strength=0.30  asked, weak evidence
+  Learning ability               strength=0.00  not covered
+  Attention to detail            strength=0.00  not covered
+  Planning & meeting deadlines   strength=0.00  not covered
+  Analytical thinking            strength=0.00  not covered
+  Problem solving                strength=0.00  asked, weak evidence
+  Decision making                strength=0.00  not covered
+  Teamwork                       strength=0.85  covered
+  Working independently          strength=0.00  not covered
+
+SUMMARY
+  Validated — hands-on (described doing it): Python, Object-Oriented Programming
+  Validated — conceptual (JD asks only for exposure): —
+  Practical, not yet validated            : —
+  Theoretical / conceptual only           : —
+  Learning only                           : —
+  Explicit no experience                  : —
+  Said they don't know                    : —
+  Contradicted                            : —
+  Implied by other answers, not asked     : —
+  Not asked (unresolved)                  : Generative AI, LLMs, RAG, Prompt Engineering, AI/ML libraries and frameworks, Software development lifecycle, C#, ASP.NET, Angular, SQL Server, REST API, Application architecture, Software engineering practices, Data analysis
+  Résumé claims never probed              : TensorFlow, PyTorch, SQL, Cloud
+
+Behaviour layer ran with: text, voice, vision. Cues are advisory and person-relative; see the 'behavior' section. Never an automated verdict.
+No audio/video behavioural analysis was run by this text/voice runner (advisory signals are never an automated verdict).
+
+SYSTEM
+  LLM: {"calls": 5, "failures": {"malformed_json": 2}, "avg_latency_s": {"interpret": 6.03, "followup": 2.3}}
+  per-turn ms (avg): {'understand_ms': 3464.9, 'total_ms': 8986.6, 'plan_ms': 5519.4}
+  TTS: {'backend': 'piper', 'voice': 'en_US-lessac-medium.onnx', 'device': '[1, 4]', 'spoken': 9, 'synth_ms': [644.5, 857.8, 930.4, 682.4, 852.8, 1398.5, 1081.4, 766.3, 652.1, 519.8], 'first_audio_ms': [857.8, 930.4, 682.4, 852.8, 1398.5, 1081.4, 766.3, 652.1, 519.8], 'failures': [], 'verified': True}  STT: whisper:base.en
+
+BEHAVIOUR LAYER (advisory)
+  answers analysed: 8 | flagged for verification: 0 | probes: 0 (verified 0, unresolved 0, inconsistent 0)
+  Behavioural cues are weak, person-dependent signals (Luke et al. 2023; Caso et al. 2023). 'needs verification' means a claim lacked checkable detail or conflicted with earlier statements; it does not mean the candidate lied. Voice/face evidence alone never raises a flag. Integrity items are experimental.

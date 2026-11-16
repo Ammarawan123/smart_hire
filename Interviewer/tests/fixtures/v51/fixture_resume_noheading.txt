@@ -1,0 +1,12 @@
+FAAIZ AHMED
+faaiz@example.com
+Education
+Dawood University of Engineering and Technology
+BS Artificial Intelligence 2023 – 2027
+Skills
+Python, C++, SQL, OpenCV, Git
+Selected Work
+Faraday – Desktop AI Agent
+- Built a desktop AI assistant using the Gemini API in Python.
+YOLOv8 Sign Language Detection
+- Trained a YOLOv8 model on a custom dataset and ran real-time inference with OpenCV.

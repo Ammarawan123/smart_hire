@@ -1,0 +1,33 @@
+# local environment
+.venv/
+__pycache__/
+*.pyc
+.env
+# model weights / runtimes (download explicitly; see MODEL_DOWNLOAD_GUIDE.md)
+*/*_models/*
+!*/*_models/.gitkeep
+Interviewer/Interviewer_Models/**
+!Interviewer/Interviewer_Models/.gitkeep
+NLP/nlp_models/*
+!NLP/nlp_models/.gitkeep
+vision/vision_models/*
+!vision/vision_models/.gitkeep
+Voice/voice_models/*
+!Voice/voice_models/.gitkeep
+*.onnx
+*.gguf
+*.task
+*.safetensors
+*.bin
+# generated / private data
+outputs/*
+!outputs/.gitkeep
+backups/
+data/private/
+*.pkl
+*.wav
+*.mp4
+*.webm
+# real personal resumes used as local test inputs (synthetic fixtures stay tracked)
+Interviewer/tests/fixtures/faaiz_resume_layout.txt
+Interviewer/tests/fixtures/real_layout_render.pdf

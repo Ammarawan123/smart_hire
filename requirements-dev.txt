@@ -1,0 +1,3 @@
+-r requirements.txt
+reportlab>=4.0     # PDF generation for research documents
+rich               # Voice live runner display
