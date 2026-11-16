@@ -1,4 +1,5 @@
 """
+<<<<<<< HEAD
 run_interview_v59.py — V58 interviewer wired to the behaviour layer.
 Adds SBERT question-answer and Qwen2.5 reference-answer similarity.
 """
@@ -17,6 +18,28 @@ bootstrap()
 
 import config as _cfg
 _cfg.apply_runtime_env(offline=True)
+=======
+run_interview_v59.py — the V58 interviewer, wired to the behaviour layer.  Reuses run_interview_v58_interactive.main() unchanged (monkey-patches the
+four collaborators) so every V58 flag still works:  --resume --jd --stt whisper --voice ... --simulate ...
+
+Extra switches (environment variables, so the V58 argument parser stays untouched):
+  SMARTHIRE_TTS=kokoro  KOKORO_MODEL=kokoro-v1.0.onnx  KOKORO_VOICES=voices-v1.0.bin  KOKORO_VOICE=af_sarah     use Kokoro instead of Piper
+  SMARTHIRE_VISION=1                                                                                             camera + Vision v3 pipeline
+  SMARTHIRE_NUEXTRACT_URL=http://127.0.0.1:8081  SMARTHIRE_NUEXTRACT_STYLE=1.5|2.0                              NuExtract server for claim extraction
+  SMARTHIRE_CLAIMS_LLM=1                                                                                         let Qwen extract résumé claims
+The JSON report gains a 'behavior' section (per-answer cues, evidence, probes, integrity, resume-claim status).
+"""
+import os
+import sys
+
+import sys as _s
+from pathlib import Path as _P
+_s.path.insert(0, str(_P(__file__).resolve().parents[1]))
+from shared.paths import bootstrap
+bootstrap()
+import config as _cfg
+_cfg.apply_runtime_env(offline=True)   # caches point at canonical module folders; offline flags set BEFORE torch/transformers load
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
 
 import run_interview_v58_interactive as R
 import interviewer_bridge_v59 as B
@@ -25,6 +48,7 @@ from tts_timed_v59 import KokoroTTS, TimedTTS
 
 COLLECTOR = SignalCollector()
 _vision = {"thread": None}
+<<<<<<< HEAD
 
 _V60 = {
     "bundle": None,
@@ -38,10 +62,14 @@ _V60 = {
 
 # SBERT model is loaded only once
 _SBERT_ANALYZER = None
+=======
+_V60 = {"bundle": None, "corrector": None, "relevance": None, "monitor": None, "cuelog": None, "nli": None, "ser": None}   # filled by main()
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
 
 
 def _make_tts(*args, **kwargs):
     if os.environ.get("SMARTHIRE_TTS", "").lower() == "kokoro":
+<<<<<<< HEAD
         inner = KokoroTTS(
             os.environ.get("KOKORO_MODEL", "kokoro-v1.0.onnx"),
             os.environ.get("KOKORO_VOICES", "voices-v1.0.bin"),
@@ -52,6 +80,12 @@ def _make_tts(*args, **kwargs):
     else:
         inner = _orig_tts(*args, **kwargs)
 
+=======
+        inner = KokoroTTS(os.environ.get("KOKORO_MODEL", "kokoro-v1.0.onnx"), os.environ.get("KOKORO_VOICES", "voices-v1.0.bin"), os.environ.get("KOKORO_VOICE", "af_sarah"),
+                          device=args[2] if len(args) > 2 else None, enabled=kwargs.get("enabled", True))
+    else:
+        inner = _orig_tts(*args, **kwargs)
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
     t = TimedTTS(inner)
     COLLECTOR.tts = t
     return t
@@ -59,12 +93,17 @@ def _make_tts(*args, **kwargs):
 
 def _make_stt(*args, **kwargs):
     s = SpeechInputV59(*args, **kwargs)
+<<<<<<< HEAD
     s.corrector = _V60["corrector"]
+=======
+    s.corrector = _V60["corrector"]                      # profile vocabulary -> Whisper prompt/hotwords + post-correction
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
     COLLECTOR.attach_stt(s)
     return s
 
 
 class LiveEngine(B.BehaviorAwareEngine):
+<<<<<<< HEAD
 
     def __init__(self, resume, job, llm=None, *a, **k):
         nux = None
@@ -125,6 +164,26 @@ class LiveEngine(B.BehaviorAwareEngine):
                     f"  Vision: unavailable "
                     f"({type(e).__name__}: {e}) — continuing without it"
                 )
+=======
+    def __init__(self, resume, job, llm=None, *a, **k):
+        nux = None
+        if os.environ.get("SMARTHIRE_NUEXTRACT_URL"):
+            from claim_extractor_v59 import NuExtractClient
+            nux = NuExtractClient(os.environ["SMARTHIRE_NUEXTRACT_URL"], os.environ.get("SMARTHIRE_NUEXTRACT_STYLE", "1.5"))
+        super().__init__(resume, job, llm, *a, nuextract=nux, use_llm_claims=os.environ.get("SMARTHIRE_CLAIMS_LLM") == "1",
+                         nli=_V60["nli"], relevance=_V60["relevance"], monitor=_V60["monitor"], cuelog=_V60["cuelog"], **k)
+        if os.environ.get("SMARTHIRE_VISION") == "1" and COLLECTOR.vision is None:
+            try:
+                from vision_pipeline_v3 import VisionPipeline
+                import config as _c
+                _gaze = str(_c.GAZE_ONNX) if os.environ.get("SMARTHIRE_USE_GAZE") == "1" else None   # experimental learned gaze
+                pipe = VisionPipeline(face_backend=os.environ.get("SMARTHIRE_FACE_BACKEND", "legacy"), face_model_path=str(_c.FACE_LANDMARKER), gaze_model_path=_gaze)
+                COLLECTOR.vision = VisionAdapter(pipe)
+                th = CameraThread(pipe); th.start(); _vision["thread"] = th
+                print("  Vision: camera thread started")
+            except Exception as e:
+                print(f"  Vision: unavailable ({type(e).__name__}: {e}) — continuing without it")
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
 
     def step(self, answer, signals=None):
         sig = signals if signals is not None else COLLECTOR.collect()
@@ -132,7 +191,12 @@ class LiveEngine(B.BehaviorAwareEngine):
 
 
 def _patched_say_hook():
+<<<<<<< HEAD
     """V58 TTS/STT timing hook."""
+=======
+    """After the runner speaks a question (tts.speak -> wait), the V58 loop calls stt.listen(), which first waits for the TTS queue.
+    TimedTTS.wait() stamps last_end; SignalCollector.question_spoken() reads it lazily at collect() time, so no extra hook is needed."""
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
 
 
 _orig_tts = R.TTSEngine
@@ -141,6 +205,7 @@ _orig_render = R.render_text
 
 
 def _build(engine, *a, **k):
+<<<<<<< HEAD
     global _SBERT_ANALYZER
 
     rep = _orig_build(engine, *a, **k)
@@ -275,11 +340,28 @@ def _build(engine, *a, **k):
     except Exception as e:
         rep["sbert_error"] = f"{type(e).__name__}: {e}"
 
+=======
+    rep = _orig_build(engine, *a, **k)
+    if isinstance(engine, B.BehaviorAwareEngine):
+        rep["behavior"] = B.behavior_report(engine)
+        used = [m for m in ("voice_usable", "vision_usable") if any(t.quality.get(m) for t in engine.behavior.turns)]
+        rep["behavioural_note"] = ("Behaviour layer ran with: text" + "".join(", " + m.split("_")[0] for m in used) +
+                                   ". Cues are advisory and person-relative; see the 'behavior' section. Never an automated verdict.")
+    b = _V60["bundle"]
+    if b is not None:
+        rep["candidate_profile"] = {"file": str(_V60.get("profile_path", "")), "extraction_log": b.profile.get("extraction_log"),
+                                    "vocabulary_terms": len(b.profile["vocabulary"]["terms"])}
+    if _V60["corrector"] is not None:
+        rep["transcript_corrections"] = [c for t in getattr(getattr(engine, "behavior", None), "turns", []) for c in (getattr(t, "corrections", None) or [])]
+    if _V60["cuelog"] is not None:
+        rep["cue_log"] = _V60["cuelog"].summary()
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
     return rep
 
 
 def _render(rep):
     txt = _orig_render(rep)
+<<<<<<< HEAD
 
     b = rep.get("behavior")
 
@@ -349,19 +431,53 @@ def _pull(argv, name, default=""):
         out.append(a)
         i += 1
 
+=======
+    b = rep.get("behavior")
+    if b:
+        s = b["summary"]
+        txt += (f"\n\nBEHAVIOUR LAYER (advisory)\n  answers analysed: {s['answers']} | flagged for verification: {s['flagged']} | probes: {s['probes']} "
+                f"(verified {s['verified']}, unresolved {s['unresolved']}, inconsistent {s['inconsistent']})\n  {b['disclaimer']}")
+    cp = rep.get("candidate_profile")
+    if cp:
+        x = cp.get("extraction_log") or {}
+        txt += (f"\n\nCANDIDATE PROFILE: {cp['file']}\n  skills by source: {x.get('skills_by_source')} | learned this run: {[a['name'] for a in x.get('accepted', [])]} "
+                f"| dropped: {len(x.get('dropped', []))} | vocabulary terms for transcription: {cp['vocabulary_terms']}")
+    if rep.get("cue_log"):
+        txt += f"\n\nCUE FILES (vision/voice/text/integrity, timestamped): {rep['cue_log'].get('folder')}"
+    return txt
+
+
+R.TTSEngine, R.SpeechInput, R.InterviewEngine, R.build_report, R.render_text = _make_tts, _make_stt, LiveEngine, _build, _render
+
+def _pull(argv, name, default=""):
+    """Remove `--name value` / `--name=value` from argv and return the value."""
+    out, val, i = [], default, 0
+    while i < len(argv):
+        a = argv[i]
+        if a == name and i + 1 < len(argv):
+            val = argv[i + 1]; i += 2; continue
+        if a.startswith(name + "="):
+            val = a.split("=", 1)[1]; i += 1; continue
+        out.append(a); i += 1
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
     return out, val
 
 
 def main():
     import time as _t
+<<<<<<< HEAD
 
     argv = sys.argv[1:]
 
+=======
+    argv = sys.argv[1:]
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
     argv, profile_json = _pull(argv, "--profile-json", "")
     resume_p = _pull(argv, "--resume")[1]
     jd_p = _pull(argv, "--jd")[1]
     company = _pull(argv, "--company")[1]
     role_key = _pull(argv, "--role-key")[1]
+<<<<<<< HEAD
 
     t0 = _t.monotonic()
 
@@ -452,10 +568,42 @@ def main():
                     f"{type(e).__name__}: {e}"
                 )
 
+=======
+    t0 = _t.monotonic()
+    if resume_p and jd_p and "--test-tts" not in argv and os.environ.get("SMARTHIRE_PROFILE", "1") != "0":
+        from profile_builder_v60 import build_profile
+        print("=" * 60 + "\nSMART HIRE — building candidate profile (skill bank + NuExtract fallback)\n" + "=" * 60)
+        out = profile_json or str(_cfg.PROFILE_JSON)
+        nux = "off" if os.environ.get("SMARTHIRE_NUEXTRACT", "auto").lower() in ("off", "0") else "auto"
+        try:
+            b = build_profile(resume_p, jd_p, company, role_key, out_path=out, nuextract=nux)
+        except Exception as e:
+            import traceback
+            print(f"  profile builder failed ({type(e).__name__}: {e}); falling back to the plain V58 extractors\n{traceback.format_exc(limit=3)}")
+            b = None
+        if b is not None:
+            _V60.update(bundle=b, profile_path=out)
+            res, job = b.resume, b.job
+            R.extract_resume = lambda *a, **k: res
+            R.extract_jd = lambda *a, **k: job
+            _orig_cached = R.cached
+            R.cached = lambda kind, path, build: ((res, False) if kind == "resume" else (job, False) if kind.startswith("jd_") else _orig_cached(kind, path, build))
+            try:
+                from transcript_fix_v60 import TranscriptCorrector
+                _V60["corrector"] = TranscriptCorrector.from_profile(b.profile)
+            except Exception as e:
+                print(f"  transcript corrector unavailable: {type(e).__name__}: {e}")
+            try:
+                from relevance_v60 import ResumeRelevance
+                _V60["relevance"] = ResumeRelevance.from_profile(b.profile)
+            except Exception as e:
+                print(f"  resume relevance unavailable: {type(e).__name__}: {e}")
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
     if os.environ.get("SMARTHIRE_CUELOG", "1") != "0":
         try:
             from cue_log_v60 import CueLog
             from cheat_detector_v60 import CheatMonitor
+<<<<<<< HEAD
 
             _V60["cuelog"] = CueLog(session_t0=t0)
 
@@ -538,10 +686,45 @@ def main():
     try:
         R.main()
 
+=======
+            _V60["cuelog"] = CueLog(session_t0=t0)
+            _V60["monitor"] = CheatMonitor(cuelog=_V60["cuelog"], relevance=_V60["relevance"], session_t0=t0)
+        except Exception as e:
+            print(f"  cue log / assist-pattern monitor unavailable: {type(e).__name__}: {e}")
+    if os.environ.get("SMARTHIRE_SER") == "1":
+        try:
+            from voice_runtime_v60 import SerRunner, silero_vad_fn
+            sr_ = SerRunner()
+            print("  Voice models: loading SER arena (audeering / ehcalabres / HuBERT)…")
+            if sr_.load():
+                COLLECTOR.ser_fn = sr_; _V60["ser"] = sr_
+            else:
+                print(f"  SER unavailable: {sr_.errors[-1] if sr_.errors else '?'} — continuing with acoustic cues only")
+            COLLECTOR.vad_fn = silero_vad_fn()
+            print("  Voice: Silero VAD " + ("ready" if COLLECTOR.vad_fn else "unavailable (energy VAD used)"))
+        except Exception as e:
+            print(f"  voice runtime unavailable: {type(e).__name__}: {e}")
+    if os.environ.get("SMARTHIRE_NLI") == "1":
+        try:
+            from text_cues_v59 import NLIChecker
+            name = str(_cfg.NLI_DIR) if os.path.isdir(str(_cfg.NLI_DIR)) else "cross-encoder/nli-deberta-v3-xsmall"
+            n = NLIChecker(name)
+            _V60["nli"] = n if n.available else None
+            print("  NLI contradiction check: " + ("ready" if n.available else "unavailable"))
+        except Exception as e:
+            print(f"  NLI unavailable: {type(e).__name__}: {e}")
+    sys.argv = [sys.argv[0]] + argv
+    try:
+        R.main()
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
     finally:
         if _V60["cuelog"] is not None:
             _V60["cuelog"].close()
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     main()
+=======
+    main()
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9

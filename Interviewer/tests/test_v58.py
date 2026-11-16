@@ -309,6 +309,7 @@ class TestAnswerUnderstanding(unittest.TestCase):
         self.assertGreaterEqual(len(self.g.get("rag").facets_covered), 2)
         self.assertEqual(self.g.get("rag").status, DEMONSTRATED)
 
+<<<<<<< HEAD
     def test_rag_design_after_explicit_nonimplementation_is_theoretical(self):
         ctx = QuestionContext("knowledge", ["rag"])
         answer = "I understand the concept of RAG, although I haven't implemented a complete RAG pipeline independently yet. The process starts by loading documents, extracting their text, and splitting them into smaller chunks. Then we generate embeddings and store them in a vector database. When a user asks a question, we convert it into an embedding, retrieve the most relevant chunks, and pass those chunks along with the question to an LLM. The model then generates an answer grounded in the retrieved information. I would also include source references to make the answer easier to verify."
@@ -319,6 +320,8 @@ class TestAnswerUnderstanding(unittest.TestCase):
         self.assertNotEqual(self.g.get("rag").status, DEMONSTRATED)
         self.assertFalse(self.g.get("rag").candidate_demonstration)
 
+=======
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
     def test_used_python(self):
         ctx = QuestionContext("project_probe", ["python"], "Sign Language Detection")
         it, st = self.stance("I used Python for my sign language detection project. I trained the YOLO model and wrote the real-time detection code.", ctx, "python")
