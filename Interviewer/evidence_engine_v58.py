@@ -216,12 +216,9 @@ class EvidenceGraph:
         changes: List[str] = []
         if it.intent in ("quit", "help", "repeat", "clarify_request", "dispute", "empty"):
             return changes
-<<<<<<< HEAD
         # Closing answers are conversational only and must not affect competency evidence.
         if ctx.kind == "closing":
             return changes
-=======
->>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
         if it.intent == "skip":
             for k in ctx.targets:
                 c = self._ensure(k, imp=1, required=False)

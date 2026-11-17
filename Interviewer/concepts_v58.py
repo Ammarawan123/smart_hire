@@ -185,11 +185,7 @@ _c("llm", "LLMs", "AI_ML", "large language model|large language models|llms|llm|
       "impl": "When your code calls an LLM through an API, what goes into the request and what do you do with the response?",
       "scenario": "No problem. Suppose a user asks your LLM-powered app a question it can't know the answer to. What can go wrong, and how would you handle it?"})
 _c("llm_api", "LLM APIs", "AI_ML", "gemini api|google gemini|gemini|cohere|openai|openai api|chatgpt api|gpt-4|gpt4|gpt-3|gpt|claude api|llama|qwen|mistral|llm api|llm apis|hugging face api|groq", kind="technology",
-<<<<<<< HEAD
    implies={"llm": 0.9, "genai": 0.8, "nlp": 0.3}, library_like=True,
-=======
-   implies={"llm": 0.9, "genai": 0.8, "rest_api": 0.35, "nlp": 0.3}, library_like=True,
->>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
    facets={"calling": ["api", "request", "key", "endpoint", "sdk"], "prompting": ["prompt", "system message", "temperature", "token*"], "errors": ["error", "retry", "timeout", "rate limit", "fail"]})
 _c("rag", "RAG", "AI_ML", "retrieval augmented generation|retrieval-augmented generation|retrieval augmented|rag pipeline", kind="concept", implies={"llm": 0.5, "embeddings": 0.4},
    facets={"ingestion": ["ingest*", "load document", "pdf", "parse", "documents"], "chunking": ["chunk*", "split", "overlap", "passage"], "embeddings": ["embed*", "vector*", "sentence-transformer", "sbert", "encode"],
@@ -240,11 +236,7 @@ _c("sdlc", "Software development lifecycle", "practice", "sdlc|software developm
    q={"basic": "Walk me through how a feature goes from an idea to released software, in the steps you would follow.",
       "impl": "In a project you worked on, how did you decide what to build first, and how did you check that it worked before calling it done?",
       "scenario": "No problem. Suppose your manager asks for a new search feature in an existing app. What steps would you go through before it reaches users?"})
-<<<<<<< HEAD
 _c("rest_api", "REST API", "practice", "restful api|restful apis|restful|rest apis|rest api", kind="concept",
-=======
-_c("rest_api", "REST API", "practice", "restful api|restful apis|restful|rest apis|rest api|rest|web api|http api|api integration|api", kind="concept",
->>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
    facets={"methods": ["get", "post", "put", "delete", "patch", "http method"], "status": ["status code", "200", "404", "500", "201", "401"], "format": ["json", "xml", "payload", "body", "header"], "design": ["endpoint", "resource", "url", "stateless", "route"]},
    implies={}, q={"basic": "What is a REST API, and how would a front end use one to get data from a server?",
                   "impl": "Suppose you design a service for a to-do list. Which endpoints and HTTP methods would you create, and what would they return?",

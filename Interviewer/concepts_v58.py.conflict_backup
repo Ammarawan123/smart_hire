@@ -1,0 +1,397 @@
+"""
+concepts_v58.py — the shared concept registry (skills, technologies, practices, domains).
+
+One registry serves résumé skills, JD requirements, answer understanding and question generation, so
+"RAG" means the same thing everywhere. Each concept carries:
+  * aliases        surface forms to detect (word-boundary safe, symbol-safe: C#, C++, .NET, ASP.NET)
+  * category       résumé category: programming_languages | frameworks | libraries | databases | AI_ML | tools | other
+                   (JD-only categories: architecture | practice | domain)
+  * facets         what *evidence* of real understanding looks like (used for DEMONSTRATED vs THEORETICAL)
+  * implies        weaker supporting evidence (YOLO practical => Computer Vision practical, lower weight)
+  * q              question text per difficulty level; 'scenario' is the fallback for candidates with no experience
+The registry is data, not logic: adding a concept never needs a code change elsewhere.
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple
+
+LEVELS = ["basic", "impl", "depth", "tradeoff", "debug"]      # controlled difficulty ladder
+
+
+@dataclass
+class Concept:
+    key: str
+    name: str
+    category: str
+    kind: str = "technology"             # technology | concept | practice | domain
+    aliases: List[str] = field(default_factory=list)
+    cs_aliases: List[str] = field(default_factory=list)       # case-sensitive aliases (e.g. "Go", "R")
+    item_only: List[str] = field(default_factory=list)        # only valid as a whole skills-list item ("C", "R")
+    facets: Dict[str, List[str]] = field(default_factory=dict)
+    implies: Dict[str, float] = field(default_factory=dict)
+    q: Dict[str, str] = field(default_factory=dict)
+    gate: str = ""                        # "Have you worked with <gate>?" phrasing
+    cluster: str = ""
+    bridge_from: List[str] = field(default_factory=list)      # résumé concepts that can bridge into a grounded question
+    bridge_q: str = ""                    # uses {tech} {project}
+    library_like: bool = False            # candidates *use* these; "I didn't build it" is not a lack of experience
+
+    def expected_evidence(self) -> List[str]:
+        return list(self.facets.keys())
+
+
+REG: Dict[str, Concept] = {}
+
+
+def _c(key, name, cat, aliases="", kind="technology", facets=None, implies=None, q=None, gate="", cluster="", bridge_from="", bridge_q="",
+       cs="", item_only="", library_like=False):
+    c = Concept(key=key, name=name, category=cat, kind=kind,
+                aliases=[a.strip() for a in aliases.split("|") if a.strip()] + [name.lower()],
+                cs_aliases=[a.strip() for a in cs.split("|") if a.strip()],
+                item_only=[a.strip() for a in item_only.split("|") if a.strip()],
+                facets=facets or {}, implies=implies or {}, q=q or {}, gate=gate or name, cluster=cluster,
+                bridge_from=[b for b in bridge_from.split("|") if b], bridge_q=bridge_q, library_like=library_like)
+    REG[key] = c
+    return c
+
+
+# ── programming languages ───────────────────────────────────────────────────────────────────────
+_c("python", "Python", "programming_languages", "python3|py", facets={"data_structures": ["list", "dict", "tuple", "set", "array"],
+   "functions_classes": ["function", "class", "module", "decorator", "generator", "comprehension"], "libraries": ["pandas", "numpy", "library", "package", "pip"],
+   "scripting_or_app": ["script", "automate", "automation", "application", "program", "tool"]},
+   q={"basic": "Pick one thing you wrote in Python yourself, not from a tutorial, and walk me through how it works.",
+      "impl": "Say you have a CSV of students with their scores. Talk me through how you'd write Python to return the top three.",
+      "depth": "What's the difference between a list and a dictionary in Python, and how do you decide which to use?",
+      "scenario": "Suppose you must read a text file of log lines and count how many lines contain the word ERROR. How would you do it in Python?"})
+_c("c", "C", "programming_languages", "c language", item_only="C", cs="")
+_c("cpp", "C++", "programming_languages", "cpp|c plus plus", facets={"memory": ["pointer", "memory", "heap", "stack"], "oop": ["class", "inherit*", "object"]})
+_c("csharp", "C#", "programming_languages", "c sharp|csharp", cluster="dotnet_web",
+   facets={"language_features": ["class", "interface", "linq", "async", "generic", "property"], "usage": ["wrote", "built", "console", "application", "project"]},
+   implies={"oop": 0.5},
+   q={"basic": "Your résumé lists C#. What have you actually written in it, even something small?",
+      "impl": "In C#, how would you model a Student and a Teacher that share some properties but behave differently?",
+      "scenario": "Suppose you had to build a small desktop or web app in C#. Which pieces of the language and framework would you reach for first?"},
+   gate="C#")
+_c("java", "Java", "programming_languages", "java se|jdk", implies={"oop": 0.6})
+_c("javascript", "JavaScript", "programming_languages", "js|ecmascript|node.js|nodejs|node", facets={"dom": ["dom", "browser", "event"], "async": ["promise", "async", "await", "callback", "fetch"]})
+_c("typescript", "TypeScript", "programming_languages", "ts", implies={"javascript": 0.6})
+_c("html_css", "HTML/CSS", "programming_languages", "html|css|html5|css3", facets={"layout": ["flex", "grid", "layout", "responsive"]})
+_c("php", "PHP", "programming_languages", "laravel")
+_c("kotlin", "Kotlin", "programming_languages", "")
+_c("swift", "Swift", "programming_languages", "swiftui")
+_c("matlab", "MATLAB", "programming_languages", "")
+_c("r_lang", "R", "programming_languages", "r programming", item_only="R")
+_c("go_lang", "Go", "programming_languages", "golang", cs="Go")
+_c("bash", "Bash/Shell", "programming_languages", "shell scripting|bash scripting|powershell")
+_c("dart", "Dart/Flutter", "frameworks", "flutter|dart")
+
+# ── frameworks ──────────────────────────────────────────────────────────────────────────────────
+_c("aspnet", "ASP.NET", "frameworks", "asp.net core|asp.net mvc|asp net|aspnet|.net core|dotnet core|.net|dotnet|net core", cluster="dotnet_web",
+   facets={"request_flow": ["request", "response", "route", "routing", "controller", "middleware", "endpoint", "mvc"], "data": ["entity", "database", "ef", "ado", "model"],
+           "api": ["api", "json", "http"]}, implies={"csharp": 0.5, "rest_api": 0.3},
+   q={"basic": "Have you worked with ASP.NET, or a similar web framework like Flask or Django? Tell me how a browser request gets to your code and back.",
+      "impl": "How would you structure an ASP.NET application that lists students from a database and lets a user add a new one?",
+      "scenario": "No problem. Suppose a browser asks for /students/5. Walk me through what a web framework does from receiving that request to sending back a response."},
+   gate="ASP.NET", bridge_from="flask|django|fastapi", bridge_q="You've used {tech}. How does the way {tech} handles a request compare with what you'd expect from ASP.NET?")
+_c("angular", "Angular", "frameworks", "angularjs|angular js|angular 2", cluster="dotnet_web",
+   facets={"components": ["component", "template", "module"], "binding": ["binding", "data bind", "reactive", "observable", "state"], "http": ["http", "service", "api", "fetch"]},
+   implies={"typescript": 0.5, "javascript": 0.4},
+   q={"basic": "Have you built a front end with Angular, React, or plain JavaScript? What did one of your components do?",
+      "impl": "In a front-end framework like Angular, how would you show a list of items loaded from an API and update it when a new item is added?",
+      "scenario": "No problem. Think of a page that shows a list loaded from a server. How would a front-end framework keep the screen in sync with that data?"},
+   gate="Angular", bridge_from="html_css|javascript|react", bridge_q="You've worked with {tech}. How would you build a page that loads a list from an API with it?")
+_c("react", "React", "frameworks", "reactjs|react.js|next.js|nextjs", implies={"javascript": 0.6}, cluster="dotnet_web",
+   facets={"components": ["component", "props", "jsx"], "state": ["state", "hook", "usestate", "effect"]})
+_c("django", "Django", "frameworks", "django rest framework|drf", facets={"orm": ["orm", "model", "migration"], "views": ["view", "url", "template"]}, implies={"python": 0.7, "rest_api": 0.3})
+_c("flask", "Flask", "frameworks", "", facets={"routes": ["route", "endpoint", "request"], "api": ["api", "json"]}, implies={"python": 0.7, "rest_api": 0.3})
+_c("fastapi", "FastAPI", "frameworks", "", implies={"python": 0.7, "rest_api": 0.5})
+_c("spring", "Spring Boot", "frameworks", "spring|springboot|spring framework", implies={"java": 0.7, "rest_api": 0.3})
+_c("express", "Express.js", "frameworks", "expressjs|express js", implies={"javascript": 0.6, "rest_api": 0.4})
+_c("tkinter", "Tkinter", "frameworks", "", implies={"python": 0.7}, library_like=True)
+_c("pygame", "Pygame", "frameworks", "", implies={"python": 0.7}, library_like=True)
+_c("ursina", "Ursina Engine", "frameworks", "ursina", implies={"python": 0.7}, library_like=True)
+_c("unity", "Unity", "frameworks", "unity3d|unity engine", library_like=True)
+_c("streamlit", "Streamlit", "frameworks", "gradio", implies={"python": 0.7})
+
+# ── libraries ───────────────────────────────────────────────────────────────────────────────────
+_c("pandas", "pandas", "libraries", "", implies={"python": 0.7, "data_analysis": 0.5}, library_like=True,
+   facets={"dataframe": ["dataframe", "merge", "groupby", "clean*", "missing"]})
+_c("numpy", "NumPy", "libraries", "", implies={"python": 0.7}, library_like=True)
+_c("matplotlib", "Matplotlib", "libraries", "", implies={"python": 0.6, "data_analysis": 0.4}, library_like=True)
+_c("seaborn", "Seaborn", "libraries", "", implies={"python": 0.6, "data_analysis": 0.4}, library_like=True)
+_c("sklearn", "scikit-learn", "libraries", "scikit learn|sklearn|scikitlearn", implies={"python": 0.7, "ml": 0.8, "ml_libs": 0.8}, library_like=True,
+   facets={"split": ["train test", "split", "cross validation", "validation set"], "model": ["classifier", "regression", "random forest", "svm", "pipeline", "fit"], "metrics": ["accuracy", "precision", "recall*", "f1", "confusion"]},
+   q={"basic": "Walk me through how you'd train and evaluate a simple classifier in scikit-learn on a CSV dataset.",
+      "scenario": "No problem. Suppose you have a CSV with customer features and a yes/no label. How would you build and check a model for it?"})
+_c("opencv", "OpenCV", "libraries", "cv2|open cv", implies={"cv": 0.8, "python": 0.4}, library_like=True,
+   facets={"io": ["frame", "video", "webcam", "capture", "read"], "processing": ["resize", "grayscale", "blur", "threshold", "contour", "filter", "draw"]})
+_c("tensorflow", "TensorFlow", "libraries", "tf", implies={"dl": 0.8, "python": 0.5, "ml_libs": 0.8}, library_like=True)
+_c("keras", "Keras", "libraries", "tf.keras", implies={"dl": 0.8, "python": 0.5, "ml_libs": 0.8}, library_like=True)
+_c("pytorch", "PyTorch", "libraries", "torch", implies={"dl": 0.8, "python": 0.5, "ml_libs": 0.8}, library_like=True,
+   facets={"training_loop": ["loss", "optimizer", "epoch", "backward", "batch"], "tensors": ["tensor", "dataloader", "gpu"]})
+_c("yolo", "YOLO", "libraries", "yolov5|yolov7|yolov8|yolo v8|yolov9|yolo11|ultralytics", implies={"od": 0.9, "cv": 0.9, "dl": 0.7, "ml_libs": 0.8, "python": 0.4}, library_like=True,
+   facets={"data": ["dataset", "annotat*", "label*", "image"], "training": ["train*", "epoch", "weights", "pretrained", "fine-tun*", "fine tun*"], "eval": ["map", "precision", "recall*", "iou", "confusion", "validation"]})
+_c("transformers", "Hugging Face Transformers", "libraries", "huggingface|hugging face|bert|transformers library", implies={"nlp": 0.7, "llm": 0.4}, library_like=True)
+_c("langchain", "LangChain", "libraries", "llamaindex|llama index|llama-index", implies={"llm": 0.7, "rag": 0.4, "python": 0.4}, library_like=True)
+_c("nltk_spacy", "NLTK/spaCy", "libraries", "nltk|spacy", implies={"nlp": 0.8}, library_like=True)
+_c("speechrec", "Speech Recognition/TTS", "libraries", "speechrecognition|speech recognition|pyttsx3|whisper|gtts|text to speech|tts|stt", implies={"speech": 0.9, "python": 0.4}, library_like=True)
+
+# ── databases ───────────────────────────────────────────────────────────────────────────────────
+_SQLQ = {"basic": "Say you have two tables, customers and orders. How would you write a query that returns the five customers with the highest total order value?",
+         "impl": "How would you design the tables for a school: students, courses and enrolments? Which keys would you define?",
+         "depth": "What does an index do in a database, and what is the cost of adding one?",
+         "scenario": "No problem. Suppose you have a customers table and an orders table. How would you find the five customers who spent the most?"}
+_c("sql", "SQL", "databases", "structured query language|t-sql|tsql|pl/sql|plsql|queries", cluster="dotnet_web",
+   facets={"join": ["join"], "aggregate": ["group by", "sum", "count", "aggregate", "having"], "filter_sort": ["where", "order by", "limit", "top"], "design": ["primary key", "foreign key", "index", "normaliz*", "schema"]},
+   q=_SQLQ, gate="SQL", implies={"sqlserver": 0.0})
+_c("sqlserver", "SQL Server", "databases", "mssql|ms sql|microsoft sql server|sql server management studio|ssms", cluster="dotnet_web", implies={"sql": 0.8},
+   facets={"join": ["join"], "aggregate": ["group by", "sum", "count"], "design": ["primary key", "foreign key", "index", "stored procedure", "schema"]},
+   q=_SQLQ, gate="SQL Server")
+_c("mysql", "MySQL", "databases", "mariadb", implies={"sql": 0.8})
+_c("postgres", "PostgreSQL", "databases", "postgres|postgresql", implies={"sql": 0.8})
+_c("oracle", "Oracle DB", "databases", "oracle database|oracle db|oracle sql", implies={"sql": 0.8})
+_c("sqlite", "SQLite", "databases", "", implies={"sql": 0.8})
+_c("mongodb", "MongoDB", "databases", "mongo|nosql", facets={"documents": ["document*", "collection", "json", "schema"]})
+_c("redis", "Redis", "databases", "")
+_c("faiss_vec", "Vector databases", "databases", "faiss|chroma|chromadb|pinecone|weaviate|qdrant|vector database|vector db|vector store|milvus", implies={"embeddings": 0.6, "rag": 0.3})
+
+# ── AI / ML ─────────────────────────────────────────────────────────────────────────────────────
+_c("ml", "Machine Learning", "AI_ML", "ml|machine-learning", kind="concept",
+   facets={"data_split": ["train*", "test", "validation", "split"], "overfit": ["overfit*", "regulariz*", "dropout", "augment*", "generaliz*"], "metrics": ["accuracy", "precision", "recall*", "f1", "map", "loss", "confusion"],
+           "model_choice": ["logistic", "regression", "random forest", "svm", "cnn", "neural", "baseline", "classifier"]},
+   implies={}, q={"basic": "How do you know whether a machine-learning model you trained is actually good, and not just memorising the training data?",
+                  "depth": "Your model scores well on training data but badly on new data. What would you check first, and what would you change?",
+                  "scenario": "No problem. Suppose you had to predict whether a customer will cancel a subscription from past data. What steps would you take, from the raw data to checking the result?"})
+_c("dl", "Deep Learning", "AI_ML", "neural network|neural networks|cnn|convolutional|lstm|rnn", kind="concept", implies={"ml": 0.85},
+   facets={"architecture": ["layer", "cnn", "convolution", "lstm", "transformer"], "training": ["epoch", "batch", "loss", "optimizer", "learning rate", "backprop"], "regularize": ["dropout", "batch norm", "augment*", "early stop"]})
+_c("cv", "Computer Vision", "AI_ML", "image classification|image processing|computer-vision", kind="concept", implies={"ml": 0.7},
+   facets={"data": ["image", "dataset", "annotat*", "label*"], "model": ["cnn", "yolo", "detector", "classif"], "eval": ["map", "accuracy", "iou", "precision", "recall*"]})
+_c("od", "Object Detection", "AI_ML", "object-detection|detection model", kind="concept", implies={"cv": 0.9, "dl": 0.6})
+_c("nlp", "NLP", "AI_ML", "natural language processing|text mining|sentiment analysis", kind="concept", implies={"ml": 0.6},
+   facets={"preprocess": ["token*", "stopword", "lemma*", "stem*"], "representation": ["embedding", "tf-idf", "tfidf", "bert", "vector*"]})
+_c("speech", "Speech Processing", "AI_ML", "asr|voice recognition", kind="concept")
+_c("genai", "Generative AI", "AI_ML", "gen ai|genai|generative artificial intelligence|generative-ai|ai assistants|ai assistant|chatgpt|copilot|ai tools|generative models", kind="concept",
+   facets={"models": ["llm", "gpt", "gemini", "diffusion", "transformer", "model"], "usage": ["prompt", "api", "generate", "chatbot", "assistant"], "limits": ["hallucinat*", "bias", "cost", "latency", "context", "accuracy"]},
+   implies={"ml": 0.3},
+   q={"basic": "Where have you used generative AI in something you built, and what did you have to handle yourself beyond calling the model?",
+      "depth": "What are the main failure modes of a generative model in a product, and how would you reduce them?",
+      "scenario": "Imagine your assistant gives a confident but wrong answer. What could cause that, and how would you reduce it?"})
+_c("llm", "LLMs", "AI_ML", "large language model|large language models|llms|llm|language model|language models", kind="concept",
+   implies={"genai": 0.8, "nlp": 0.4},
+   facets={"calling": ["api", "request", "key", "endpoint", "sdk"], "prompting": ["prompt", "system message", "temperature", "token*"], "limits": ["hallucinat*", "context window", "latency", "cost", "rate limit", "limitation"], "pipeline": ["parse", "json", "tool", "chain", "memory", "history"]},
+   q={"basic": "In your own words, how does a large language model produce an answer, and what are its main limitations?",
+      "impl": "When your code calls an LLM through an API, what goes into the request and what do you do with the response?",
+      "scenario": "No problem. Suppose a user asks your LLM-powered app a question it can't know the answer to. What can go wrong, and how would you handle it?"})
+_c("llm_api", "LLM APIs", "AI_ML", "gemini api|google gemini|gemini|cohere|openai|openai api|chatgpt api|gpt-4|gpt4|gpt-3|gpt|claude api|llama|qwen|mistral|llm api|llm apis|hugging face api|groq", kind="technology",
+<<<<<<< HEAD
+   implies={"llm": 0.9, "genai": 0.8, "nlp": 0.3}, library_like=True,
+=======
+   implies={"llm": 0.9, "genai": 0.8, "rest_api": 0.35, "nlp": 0.3}, library_like=True,
+>>>>>>> ca3f767841167c86d532ea2212bbb3e4357a23f9
+   facets={"calling": ["api", "request", "key", "endpoint", "sdk"], "prompting": ["prompt", "system message", "temperature", "token*"], "errors": ["error", "retry", "timeout", "rate limit", "fail"]})
+_c("rag", "RAG", "AI_ML", "retrieval augmented generation|retrieval-augmented generation|retrieval augmented|rag pipeline", kind="concept", implies={"llm": 0.5, "embeddings": 0.4},
+   facets={"ingestion": ["ingest*", "load document", "pdf", "parse", "documents"], "chunking": ["chunk*", "split", "overlap", "passage"], "embeddings": ["embed*", "vector*", "sentence-transformer", "sbert", "encode"],
+           "retrieval": ["retriev*", "similarity", "top-k", "top k", "search", "faiss", "chroma", "vector database", "vector db", "index"], "grounding": ["ground", "context", "prompt", "cite", "source", "only from", "answer using"],
+           "evaluation": ["evaluat*", "hallucinat*", "relevance", "recall*", "precision", "test set", "metrics"]},
+   q={"basic": "Have you worked with Retrieval-Augmented Generation, or RAG? If yes, walk me through how you'd build the retrieval pipeline, from document ingestion to a grounded answer.",
+      "impl": "How would you split documents into chunks for retrieval, and what changes in answer quality if the chunks are too large or too small?",
+      "depth": "Your RAG system returns confident answers that aren't in the documents. Where would you look first?",
+      "tradeoff": "When would you pick RAG over fine-tuning a model, and why?",
+      "scenario": "No problem. Suppose you had a collection of company documents and needed an LLM to answer questions using only those documents. How would you design the retrieval part?"},
+   gate="RAG")
+_c("embeddings", "Embeddings", "AI_ML", "sentence embeddings|text embeddings|sentence-transformers|sentence transformers|sbert|word2vec", kind="concept", implies={"nlp": 0.6},
+   facets={"meaning": ["similar", "meaning", "semantic", "vector*", "distance", "cosine"]})
+_c("prompt_eng", "Prompt Engineering", "AI_ML", "prompt design|prompting|prompt engineer|prompts|prompt-engineering", kind="concept", implies={"llm": 0.4},
+   facets={"structure": ["system", "role", "instruction", "format", "example", "few-shot", "few shot", "template", "json"], "iteration": ["iterate", "tweak", "change", "refine", "improve", "test", "versus", "compare"],
+           "control": ["temperature", "constraint", "length", "step by step", "chain of thought", "guardrail"]},
+   q={"basic": "How do you go about writing a prompt so an LLM returns the format and quality you want? Give me a real example.",
+      "impl": "Tell me about a prompt you wrote that didn't work at first. What did you change, and what happened?",
+      "scenario": "No problem. Suppose a chatbot keeps giving long, off-topic answers. What would you change in the prompt?"},
+   bridge_from="llm_api|llm|genai", bridge_q="In {project} you used {tech}. How did you write the prompts, and what did you do when the responses weren't what you wanted?")
+_c("data_prep", "Data preparation", "AI_ML", "data preprocessing|data cleaning|data collection|data annotation|data labeling|dataset preparation|data preparation", kind="concept",
+   facets={"sourcing": ["download*", "collect*", "scrape", "source", "capture", "kaggle"], "labeling": ["label*", "annotat*", "roboflow", "labelimg", "bounding box"], "cleaning": ["clean*", "missing", "duplicate", "outlier*", "normaliz*"],
+           "splitting": ["split", "train*", "validation", "test"]})
+_c("data_analysis", "Data analysis", "AI_ML", "data analytics|exploratory data analysis|eda|data visualization", kind="concept",
+   facets={"explore": ["explore", "distribution", "correlation", "plot", "chart"], "clean": ["clean*", "missing", "outlier*"], "insight": ["insight", "trend", "conclusion", "found"]})
+_c("model_eval", "Model evaluation", "AI_ML", "map|mean average precision|cross validation|confusion matrix", kind="concept", implies={"ml": 0.5})
+
+
+_c("ml_libs", "AI/ML libraries and frameworks", "AI_ML", "ai/ml libraries|ml libraries|ai/ml frameworks|ai and ml libraries|common ai/ml libraries and frameworks|ai/ml libraries and frameworks|machine learning libraries|deep learning frameworks", kind="concept",
+   implies={"ml": 0.5}, bridge_from="tensorflow|keras|pytorch|sklearn|yolo",
+   bridge_q="In {project} you used {tech}. Walk me through how you set up the model, trained it, and checked the result.",
+   facets={"setup": ["model", "layer", "load", "dataset", "dataloader"], "training": ["train*", "fit", "epoch", "loss", "optimizer"], "evaluation": ["accuracy", "validation", "test", "metric", "map", "confusion"]},
+   q={"basic": "Which ML library have you used the most, and how did you use it to train and check a model?",
+      "scenario": "No problem. Suppose you must classify short customer reviews as positive or negative. Which libraries would you reach for, and what steps would you follow?"})
+_c("ai_projects", "Hands-on AI project experience", "AI_ML", "hands-on ai experience|ai experience|hands-on ai|ai projects", kind="concept", implies={"ml": 0.4},
+   q={"basic": "Tell me about the AI project you are proudest of: what problem it solved and which part you built yourself."})
+
+# ── practices / architecture / domain ───────────────────────────────────────────────────────────
+_c("oop", "Object-Oriented Programming", "practice", "oop|object oriented|object-oriented|oops|classes and objects|polymorphism|encapsulation|inheritance|abstraction", kind="concept",
+   facets={"class_object": ["class", "object", "instance", "constructor"], "pillars": ["inherit*", "polymorph*", "encapsul*", "abstract*"], "example": ["example", "for instance", "such as", "my project", "i used", "i wrote"]},
+   q={"basic": "In your own words, what is object-oriented programming? Give me an example from code you've written, for instance classes in a Python project.",
+      "impl": "How would you model a library system with books, members and loans using classes? What would each class hold?",
+      "depth": "When would you use inheritance, and when would you use composition instead?",
+      "scenario": "No problem. Think of a library system with books and members. How would you model that with classes?"},
+   bridge_from="pygame|ursina|tkinter", bridge_q="In {project} you used {tech}. Did you use classes there? Show me how you would model one part of it as a class, and why.")
+_c("sdlc", "Software development lifecycle", "practice", "sdlc|software development life cycle|software development lifecycle|agile|scrum|waterfall|software development process|development lifecycle", kind="practice",
+   facets={"phases": ["requirement*", "design", "implement*", "test", "deploy*", "maintenance", "release"], "iteration": ["sprint", "iteration", "feedback", "agile", "scrum"], "collab": ["review", "git", "team", "ticket", "branch"]},
+   q={"basic": "Walk me through how a feature goes from an idea to released software, in the steps you would follow.",
+      "impl": "In a project you worked on, how did you decide what to build first, and how did you check that it worked before calling it done?",
+      "scenario": "No problem. Suppose your manager asks for a new search feature in an existing app. What steps would you go through before it reaches users?"})
+_c("rest_api", "REST API", "practice", "restful api|restful apis|restful|rest apis|rest api|rest|web api|http api|api integration|api", kind="concept",
+   facets={"methods": ["get", "post", "put", "delete", "patch", "http method"], "status": ["status code", "200", "404", "500", "201", "401"], "format": ["json", "xml", "payload", "body", "header"], "design": ["endpoint", "resource", "url", "stateless", "route"]},
+   implies={}, q={"basic": "What is a REST API, and how would a front end use one to get data from a server?",
+                  "impl": "Suppose you design a service for a to-do list. Which endpoints and HTTP methods would you create, and what would they return?",
+                  "depth": "What's the difference between PUT and PATCH, and which status codes would you return for success and for a missing resource?",
+                  "scenario": "No problem. Imagine a web page needs to show and add student records stored on a server. How would you design the endpoints it would call?"},
+   gate="REST APIs", bridge_from="llm_api|llm|genai", bridge_q="In {project} your code called {tech}. What did the HTTP request and the response look like, and how did you handle errors?")
+_c("architecture", "Application architecture", "architecture", "application types|application architecture|software architecture|different application types|client-server|client server|three-tier|n-tier|microservices|monolith|system design", kind="concept",
+   facets={"types": ["desktop", "web app", "mobile", "client-server", "client server", "api"], "layers": ["layer", "tier", "frontend", "front end", "backend", "back end", "database"], "tradeoffs": ["scal*", "maintain*", "deploy*", "latency", "trade-off", "tradeoff"]},
+   q={"basic": "What's the difference between a desktop app, a web app and a mobile app in how they're built and delivered?",
+      "impl": "Picture a web app with a browser front end and a database. Which parts would you separate, and why?",
+      "depth": "When would you split an application into separate services instead of keeping one codebase?",
+      "scenario": "No problem. Think of an online store. Which parts would the browser handle, which would a server handle, and where would the data live?"})
+_c("se_practices", "Software engineering practices", "practice", "software engineering practices|engineering practices|best practices|clean code|code review|unit testing|unit tests|testing|version control|design patterns", kind="practice",
+   facets={"testing": ["test", "unit test", "pytest", "junit"], "review": ["review", "pull request", "pr"], "vcs": ["git", "branch", "commit", "merge"], "quality": ["readab*", "naming", "refactor*", "document*", "comment", "lint"]},
+   q={"basic": "Which practices do you follow so that other people can read and maintain your code: testing, version control, reviews, naming?",
+      "impl": "Tell me how you use Git on a project, and what you do when two people change the same file.",
+      "scenario": "No problem. Suppose a teammate has to take over your code tomorrow. What would you do today to make that easy?"})
+_c("git", "Git", "tools", "github|gitlab|version control system", implies={"se_practices": 0.4}, library_like=True)
+_c("dsa", "Data structures & algorithms", "practice", "data structures|algorithms|data structures and algorithms|dsa|leetcode", kind="concept",
+   facets={"structures": ["array", "list", "stack", "queue", "tree", "graph", "hash"], "complexity": ["complexity", "big o", "o(n)", "o(1)"]},
+   q={"basic": "How would you check whether a list of numbers contains duplicates, and how would the approach change for a very large list?"})
+_c("debugging", "Debugging", "practice", "troubleshooting|debug", kind="practice")
+_c("docker", "Docker", "tools", "containers|containerization|kubernetes|k8s", facets={"image": ["image", "dockerfile", "container"]})
+_c("cloud", "Cloud", "tools", "gcp|google cloud|aws|amazon web services|azure|cloud computing", facets={"services": ["compute", "storage", "vm", "bucket", "deploy*", "function"]})
+_c("linux", "Linux", "tools", "ubuntu|unix")
+_c("jupyter", "Jupyter Notebook", "tools", "jupyter|colab|google colab", library_like=True)
+_c("vscode", "VS Code", "tools", "visual studio code|vscode|visual studio", library_like=True)
+_c("video_editing", "Video editing", "other", "video editing|premiere|davinci")
+_c("ide_misc", "Postman", "tools", "postman|swagger|openapi", implies={"rest_api": 0.5}, library_like=True)
+_c("erp", "ERP", "domain", "enterprise resource planning|erp systems|erp software|sap erp|odoo|erp", kind="domain",
+   facets={"purpose": ["finance", "inventory", "hr", "accounting", "business process", "modules", "integrat*"]},
+   q={"basic": "Have you used or heard of an ERP system? In a sentence or two, what business problem does it solve?",
+      "scenario": "No problem. Imagine a company that tracks inventory, orders and accounts in separate spreadsheets. What problems would that cause, and how could one integrated system help?"})
+_c("accounting", "Accounting", "domain", "bookkeeping|general ledger|accounts payable|accounts receivable", kind="domain")
+
+# ── helpers ─────────────────────────────────────────────────────────────────────────────────────
+# Concepts that are a *family* the JD names loosely; asking about a specific one satisfies the parent partially.
+FAMILY = {"sqlserver": "sql", "mysql": "sql", "postgres": "sql", "oracle": "sql", "sqlite": "sql"}
+
+
+def _alias_regex(alias: str, cs: bool = False) -> re.Pattern:
+    a = re.escape(alias.strip())
+    a = a.replace(r"\ ", r"[\s\-_/]*")
+    pre = r"(?<![\w+#.])" if re.match(r"[\w.]", alias) else ""
+    post = r"(?![\w#])" if re.search(r"[\w]$", alias) else r"(?![\w])"
+    if alias.endswith("+"):
+        post = r"(?![\w#])"
+    return re.compile(pre + a + post, 0 if cs else re.I)
+
+
+_ALIAS_RX: List[Tuple[re.Pattern, str, str]] = []
+_ITEM_MAP: Dict[str, str] = {}
+for _k, _cpt in REG.items():
+    seen = set()
+    for al in sorted(set(_cpt.aliases), key=len, reverse=True):
+        if al.lower() in seen or len(al) < 2:
+            continue
+        seen.add(al.lower())
+        _ALIAS_RX.append((_alias_regex(al), _k, al))
+        _ITEM_MAP[re.sub(r"[^a-z0-9#+.]", "", al.lower())] = _k
+    for al in _cpt.cs_aliases:
+        _ALIAS_RX.append((_alias_regex(al, cs=True), _k, al))
+    for al in _cpt.item_only:
+        _ITEM_MAP[re.sub(r"[^a-z0-9#+.]", "", al.lower())] = _k
+_ALIAS_RX.sort(key=lambda t: -len(t[2]))
+# "api" alone is ambiguous: only the explicit REST aliases may map from free text, not every "API"
+_AMBIGUOUS_ALIASES = {"api", "rest", "ts", "js", "py", "tf", "node", "mongo", "tts", "stt", "map", "eda", "spring", "express", "go", "r", "c", "swift", "dart", "ml", "ai"}
+
+
+def find_mentions(text: str, allow_ambiguous: bool = False) -> List[Tuple[str, int, int, str]]:
+    """Concept mentions as (key, start, end, alias). Longest alias wins on overlap."""
+    t = text or ""
+    taken: List[Tuple[int, int]] = []
+    out = []
+    for rx, key, alias in _ALIAS_RX:
+        if alias.lower() in _AMBIGUOUS_ALIASES and not allow_ambiguous:
+            if alias.lower() in {"api", "rest"}:
+                # "api" counts only with an HTTP/web cue next to it
+                for m in rx.finditer(t):
+                    ctx = t[max(0, m.start() - 24): m.end() + 24].lower()
+                    if re.search(r"rest|http|endpoint|json|web|backend|server|request", ctx) and key == "rest_api":
+                        if not any(s <= m.start() < e or s < m.end() <= e for s, e in taken):
+                            taken.append((m.start(), m.end())); out.append((key, m.start(), m.end(), alias))
+            continue
+        for m in rx.finditer(t):
+            if any(s <= m.start() < e or s < m.end() <= e for s, e in taken):
+                continue
+            taken.append((m.start(), m.end()))
+            out.append((key, m.start(), m.end(), alias))
+    out.sort(key=lambda x: x[1])
+    return out
+
+
+def lookup_item(item: str) -> Optional[str]:
+    """Resolve a single skills-list item ("scikit-learn", "Unity (C++)", "OpenCV") to a concept key."""
+    s = re.sub(r"\(.*?\)", "", item or "").strip()
+    k = re.sub(r"[^a-z0-9#+.]", "", s.lower())
+    if k in _ITEM_MAP:
+        return _ITEM_MAP[k]
+    ms = find_mentions(s, allow_ambiguous=True)
+    if ms and ms[0][1] == 0 and ms[0][2] >= len(s) - 1:
+        return ms[0][0]
+    return None
+
+
+def get(key: str) -> Optional[Concept]:
+    return REG.get(key)
+
+
+def name_of(key: str) -> str:
+    c = REG.get(key)
+    return c.name if c else key.replace("_", " ").title()
+
+
+def closure(key: str) -> Dict[str, float]:
+    """Everything a practical use of `key` supports (transitive, attenuated)."""
+    out: Dict[str, float] = {}
+    stack = [(key, 1.0)]
+    while stack:
+        k, w = stack.pop()
+        c = REG.get(k)
+        if not c:
+            continue
+        for t, tw in c.implies.items():
+            nw = w * tw
+            if nw > 0.1 and nw > out.get(t, 0):
+                out[t] = nw
+                stack.append((t, nw))
+    out.pop(key, None)
+    return out
+
+
+_KW_CACHE: Dict[str, re.Pattern] = {}
+
+
+def facets_hit(key: str, text_norm: str) -> List[str]:
+    c = REG.get(key)
+    if not c:
+        return []
+    out = []
+    for f, kws in c.facets.items():
+        for kw in kws:
+            rx = _KW_CACHE.get(kw)
+            if rx is None:
+                body = re.escape(kw.rstrip("*")).replace(r"\ ", r"[\s-]+")
+                if kw.endswith("*"):
+                    body = re.escape(kw[:-1]).replace(r"\ ", r"[\s-]+")
+                    rx = _KW_CACHE[kw] = re.compile(r"(?<![a-z0-9])" + body)
+                else:
+                    rx = _KW_CACHE[kw] = re.compile(r"(?<![a-z0-9])" + body + r"(?:s|es|ed|ing|d)?(?![a-z0-9])")
+            if rx.search(text_norm):
+                out.append(f)
+                break
+    return out

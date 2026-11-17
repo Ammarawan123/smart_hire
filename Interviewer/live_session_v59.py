@@ -157,24 +157,54 @@ class VisionAdapter:
             return None, []
 
 
+
 class CameraThread(threading.Thread):
     def __init__(self, pipeline, index: int = 0):
         super().__init__(daemon=True)
-        self.p, self.index, self.stop_flag, self.error = pipeline, index, False, None
+        self.p = pipeline
+        self.index = index
+        self.stop_flag = False
+        self.error = None
+        self.frames_processed = 0
+        self.camera_opened = False
+
+    def stop(self):
+        self.stop_flag = True
 
     def run(self):
+        cap = None
         try:
             import cv2
+
             cap = cv2.VideoCapture(self.index)
+            self.camera_opened = cap.isOpened()
+
+            if not self.camera_opened:
+                self.error = "Camera could not be opened"
+                print("  Vision camera: FAILED - camera unavailable")
+                return
+
+            print("  Vision camera: connected; processing frames")
+
             while not self.stop_flag:
                 ok, frame = cap.read()
+
                 if not ok:
                     time.sleep(0.02)
                     continue
+
                 self.p.process_frame(frame, draw=False)
-            cap.release()
+                self.frames_processed += 1
+
         except Exception as e:
             self.error = f"{type(e).__name__}: {e}"
+            print(f"  Vision camera error: {self.error}")
+
+        finally:
+            if cap is not None:
+                cap.release()
+
+            print(f"  Vision camera stopped: {self.frames_processed} frames processed")
 
 
 class SignalCollector:
